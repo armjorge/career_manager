@@ -11,13 +11,65 @@ from datetime import datetime
 
 
 class CV_GENERATION():
+    def open_folder(self, folder_path):
+        """Open a folder in the default file manager, cross-platform."""
+        if os.name == 'nt':  # Windows
+            os.startfile(folder_path)
+        elif os.uname().sysname == 'Darwin':  # macOS
+            subprocess.call(['open', folder_path])
+        else:  # Linux or other
+            subprocess.call(['xdg-open', folder_path])
+        
+    def get_cv_files(self):
+        cv_files = [f for f in os.listdir(self.templates_path) if f.startswith('Curriculum') and f.endswith('.docx')]
+        print(cv_files)
+        connexion = self.sql_conexion(self.data_access['DB_URL']).connect()
+        query_langes = "SELECT lang FROM career_accelerator.languages"
+        df_languages = pd.read_sql(query_langes, connexion)
+        languages = list(df_languages['lang'].unique())
+        lenguages_cv = {}
+        # Detectar idioma de cada archivo basado en el nombre
+        for cv_file in cv_files:
+            # Extraer la parte del idioma: después de 'Curriculum_' y antes de '.docx'
+            parts = cv_file.replace('Curriculum_', '').replace('.docx', '').split('_')
+            detected_lang = parts[0]  # Toma la primera parte (e.g., 'French', 'English')
+  
+            # Verificar si el idioma detectado está en la lista de idiomas válidos
+            if detected_lang in languages:
+                lenguages_cv[cv_file] = detected_lang
+            else:
+                print(f"⚠️ Idioma '{detected_lang}' no encontrado en la lista de idiomas válidos para {cv_file}. Omitiendo.")
+        print(lenguages_cv)
+        # Insertar en la tabla career_accelerator.cv_files
+        if lenguages_cv:
+            try:
+                with connexion.connection.cursor() as cur:
+                    # Usar ON CONFLICT para evitar duplicados (asumiendo que cv_file es único)
+                    cur.executemany(
+                        """
+                        INSERT INTO career_accelerator.cv_files (cv_file, lang)
+                        VALUES (%s, %s)
+                        ON CONFLICT (cv_file) DO NOTHING;
+                        """,
+                        [(file, lang) for file, lang in lenguages_cv.items()]
+                    )
+                    connexion.commit()
+                print(f"✅ Insertados {len(lenguages_cv)} archivos en cv_files.")
+            except Exception as e:
+                print(f"❌ Error al insertar en cv_files: {e}")
+        else:
+            print("⚠️ No hay archivos válidos para insertar.")
+
+        connexion.close()
+
     def postgre_to_docx(self):
         init(autoreset=True)
         print(f"{Fore.BLUE}CARRIER MANAGEMENT{Style.RESET_ALL}")
-        self.templates_path = os.path.join(self.working_folder, "CV Templates")
+        
         os.makedirs(self.templates_path, exist_ok=True)
 
         query = "SELECT * FROM career_accelerator.applications"
+        
         connexion = self.sql_conexion(self.data_access['DB_URL']).connect()
         if connexion is None:
             print("❌ No se pudo establecer conexión con SQL Server.")
@@ -35,10 +87,16 @@ class CV_GENERATION():
         df_cv, df_cl = self.get_desired_row(self.df_applications, self.df_cover_letters)
         lang = df_cv['lang'].values[0]
         job = df_cv['job'].values[0]
-        cv_path = os.path.join(self.templates_path, f"Curriculum_{lang}.docx")
+        if df_cv['cv_files'].values[0] is not None and df_cv['cv_files'].values[0] != '':
+            print(df_cv['cv_files'].head())
+            print(f"Generando CV con archivo vinculado...")
+            cv_file = df_cv['cv_files'].values[0]
+            cv_path = os.path.join(self.templates_path, cv_file)
+        else: 
+            cv_path = os.path.join(self.templates_path, f"Curriculum_{lang}.docx")
         cover_letter_path = os.path.join(self.templates_path, f"Cover_letter_{lang}.docx")
-        output_cv = os.path.join(self.output_path, f"{job}_CV.docx")
-        output_cl = os.path.join(self.output_path, f"{job}_CL.docx")
+        output_cv = os.path.join(self.output_path, f"{job}_JACJ_CV.docx")
+        output_cl = os.path.join(self.output_path, f"{job}_JACJ_CLetter.docx")
         if not os.path.exists(cv_path):
             print(f"{Fore.RED}❌ No se encontró el template en: {cv_path}{Style.RESET_ALL}")
             return
@@ -97,7 +155,8 @@ class CV_GENERATION():
                                     body_element.insert(index + 1, new_p_element)
                                     index += 1
                 doc.save(output_file)
-                print(f"{Fore.GREEN}✅ Curriculum generado: {output_file}{Style.RESET_ALL}")
+                doc_type = "Carta" if "CLetter" in output_file else "Curriculum"
+                print(f"{Fore.GREEN}✅ {doc_type} generado: {output_file}{Style.RESET_ALL}")
 
             except Exception as e:
                 print(f"{Fore.RED}❌ Error generando {job}: {e}{Style.RESET_ALL}")
@@ -168,12 +227,11 @@ class CV_GENERATION():
 
         # Agregar al DataFrame
         selected_row['date_issued'] = date_issued
-        df_cl['date_issued'] = date_issued
+        df_cl_match['date_issued'] = date_issued
         selected_row = selected_row.fillna('').replace({'na': '', 'Null': '', 'None': '', 'NULL': ''})
-        df_cl = df_cl.fillna('').replace({'na': '', 'Null': '', 'None': '', 'NULL': ''})
-        return selected_row, df_cl
+        df_cl_match = df_cl_match.fillna('').replace({'na': '', 'Null': '', 'None': '', 'NULL': ''})
+        return selected_row, df_cl_match
     
-
     def sql_conexion(self, sql_url):
         try:
             engine = create_engine(sql_url)
@@ -188,6 +246,7 @@ class CV_GENERATION():
         self.data_access = data_access
         self.output_path = os.path.join(self.working_folder, "Output CVs")
         os.makedirs(self.output_path, exist_ok=True)
+        self.templates_path = os.path.join(self.working_folder, "CV Templates")
         
 if __name__ == "__main__":
     env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))

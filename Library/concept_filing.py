@@ -7,6 +7,7 @@ from sqlalchemy import create_engine
 from dotenv import load_dotenv
 import yaml
 from urllib.parse import urlparse
+from Library.CV_generation import CV_GENERATION
 
 class CONCEPT_FILING:
 
@@ -41,7 +42,8 @@ class CONCEPT_FILING:
             [
                 "Companies",
                 "Applications",
-                "Cover Letters"
+                "Cover Letters",
+                "Job tracker"
             ]
         )
 
@@ -147,7 +149,7 @@ class CONCEPT_FILING:
                     SELECT job, education1, education2, education3,
                         experience1, experience2, experience3,
                         skills, interests, lang, status,
-                        company_name, company_type, created_at
+                        company_name, company_type, created_at, cv_files
                     FROM "{schema}".applications
                     ORDER BY created_at DESC;
                 ''', conn)
@@ -162,12 +164,21 @@ class CONCEPT_FILING:
             existing_jobs = df['job'].tolist() if not df.empty else []
             selected_existing_job = st.selectbox("Selecciona una aplicación existente (opcional para editar):", [""] + existing_jobs)
 
+
             # Prellenar si se seleccionó uno existente
             if selected_existing_job:
                 selected_row = df[df['job'] == selected_existing_job].iloc[0]
                 default_values = selected_row.to_dict()
             else:
                 default_values = {}
+            # === Botón actualizar CV's (movido fuera del formulario) ===
+            function_app = CV_GENERATION(self.working_folder, self.data_access)
+            if st.button("Actualizar CV Files"):
+                function_app.get_cv_files()
+            if st.button("Abre carpeta de CVs"):
+                templates_path = os.path.join(self.working_folder, "CV Templates")
+                function_app.open_folder(templates_path)
+
 
             # === Formulario ===
             with st.form("application_form", clear_on_submit=False):
@@ -217,7 +228,8 @@ class CONCEPT_FILING:
                     company_options = companies_df.to_dict('records')
                 except Exception:
                     company_options = []
-
+                
+                
                 if company_options:
                     company_names = [c['company_name'] for c in company_options]
                     selected_company_name = st.selectbox("Company Name", options=company_names, index=company_names.index(default_values.get("company_name", company_names[0])) if default_values.get("company_name") in company_names else 0)
@@ -229,7 +241,20 @@ class CONCEPT_FILING:
                 else:
                     selected_company_name = st.text_input("Company Name (if none available)", value=default_values.get("company_name", ""))
                     selected_company_type = st.text_input("Company Type", value=default_values.get("company_type", ""))
-
+                # === Sección de archivo de CV vinculado ===
+                st.markdown("#### 🏢 CV File")
+                # Load cv_files options based on selected lang (note: this uses the default lang for options; for dynamic update, consider moving outside form or using session state)
+                try:
+                    cv_files_df = pd.read_sql(
+                        f'SELECT cv_file FROM "{schema}".cv_files WHERE lang = %s ORDER BY cv_file;',
+                        conn,
+                        params=(new_lang,)
+                    )
+                    cv_file_options = cv_files_df['cv_file'].tolist()
+                except Exception:
+                    cv_file_options = []
+                selected_cv_file = st.selectbox("CV File", options=[""] + cv_file_options, index=0 if not default_values.get("cv_files") or default_values.get("cv_files") not in cv_file_options else cv_file_options.index(default_values.get("cv_files")) + 1)
+                
                 # === Botón de envío ===
                 submitted = st.form_submit_button("💾 Guardar Application")
 
@@ -244,7 +269,7 @@ class CONCEPT_FILING:
                                     SET education1 = %s, education2 = %s, education3 = %s,
                                         experience1 = %s, experience2 = %s, experience3 = %s,
                                         skills = %s, interests = %s, lang = %s, status = %s,
-                                        company_name = %s, company_type = %s
+                                        company_name = %s, company_type = %s, cv_files = %s
                                     WHERE job = %s;
                                     ''',
                                     (
@@ -252,7 +277,7 @@ class CONCEPT_FILING:
                                         new_experience1, new_experience2, new_experience3,
                                         new_skills, new_interests,
                                         new_lang, selected_status,
-                                        selected_company_name, selected_company_type,
+                                        selected_company_name, selected_company_type, selected_cv_file or None,
                                         new_job
                                     )
                                 )
@@ -264,8 +289,8 @@ class CONCEPT_FILING:
                                         (job, education1, education2, education3,
                                         experience1, experience2, experience3,
                                         skills, interests, lang, status,
-                                        company_name, company_type)
-                                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+                                        company_name, company_type, cv_files)
+                                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
                                         ''',
                                         (
                                             new_job,
@@ -273,7 +298,7 @@ class CONCEPT_FILING:
                                             new_experience1, new_experience2, new_experience3,
                                             new_skills, new_interests,
                                             new_lang, selected_status,
-                                            selected_company_name, selected_company_type
+                                            selected_company_name, selected_company_type, selected_cv_file or None
                                         )
                                     )
                                 conn.commit()
@@ -282,6 +307,7 @@ class CONCEPT_FILING:
                             st.error(f"❌ Error al guardar la Application: {e}")
                     else:
                         st.warning("⚠️ Los campos Job, Company Name y Status son obligatorios.")
+
             
         elif vista == "Cover Letters":
             st.title("📄 Cover Letters")
@@ -370,15 +396,149 @@ class CONCEPT_FILING:
 
                     except Exception as e:
                         st.error(f"❌ Error al guardar la carta: {e}")
+        elif vista == "Job tracker":
+            st.title("📌 Job tracker")
 
-            def sql_conexion(self, sql_url):
+            # === Cargar tabla job_tracker ===
+            try:
+                jt_df = pd.read_sql(
+                    f'''
+                    SELECT
+                        application_id,
+                        company,
+                        contact_person,
+                        reach_out_day,
+                        stage,
+                        "type",
+                        position,
+                        posting_url,
+                        message,
+                        next_stage_deadline
+                    FROM "{schema}".job_tracker
+                    ORDER BY company, position;
+                    ''',
+                    conn
+                )
+            except Exception as e:
+                st.error(f"❌ Error al cargar job_tracker: {e}")
+                st.stop()
+
+            if jt_df.empty:
+                st.warning("⚠️ No hay registros en job_tracker. Crea aplicaciones primero.")
+                st.stop()
+
+            # === Mostrar tabla sólo con las columnas pedidas ===
+            st.subheader("📋 Registros actuales")
+            st.dataframe(
+                jt_df[
+                    [
+                        "company",
+                        "contact_person",
+                        "reach_out_day",
+                        "stage",
+                        "type",
+                        "position",
+                        "posting_url",
+                        "message",
+                        "next_stage_deadline",
+                    ]
+                ],
+                use_container_width=True,
+            )
+
+            st.markdown("---")
+            st.markdown("### ✏️ Editar un registro")
+
+            # === Selector company – position ===
+            labels = [
+                f"{row.company} — {row.position}"
+                for _, row in jt_df.iterrows()
+            ]
+            indices = list(range(len(labels)))
+
+            selected_index = st.selectbox(
+                "Selecciona la company–position a editar:",
+                indices,
+                format_func=lambda i: labels[i],
+            )
+
+            selected_row = jt_df.iloc[selected_index]
+
+            # Campos de sólo lectura
+            st.text_input("Company", value=selected_row["company"], disabled=True)
+            st.text_input("Position", value=selected_row["position"], disabled=True)
+
+            # Valores actuales (manejar NULL/NaN/NaT)
+            def safe_str(value):
+                return str(value) if pd.notna(value) else ""
+
+            contact_person_val = safe_str(selected_row["contact_person"])
+            reach_out_day_val = safe_str(selected_row["reach_out_day"])
+            stage_val = safe_str(selected_row["stage"])
+            type_val = safe_str(selected_row["type"])
+            posting_url_val = safe_str(selected_row["posting_url"])
+            message_val = safe_str(selected_row["message"])
+            next_deadline_val = safe_str(selected_row["next_stage_deadline"])
+
+            # === Formulario de edición ===
+            with st.form("job_tracker_edit_form"):
+                contact_person = st.text_input("Contact person", value=contact_person_val)
+                reach_out_day_str = st.text_input(
+                    "Reach out day (YYYY-MM-DD)",
+                    value=reach_out_day_val,
+                )
+                stage = st.text_input("Stage", value=stage_val)
+                type_field = st.text_input("Type", value=type_val)
+                posting_url = st.text_input("Posting URL", value=posting_url_val)
+                message = st.text_area("Message", value=message_val, height=150)
+                next_stage_deadline_str = st.text_input(
+                    "Next stage deadline (YYYY-MM-DD)",
+                    value=next_deadline_val,
+                )
+
+                submitted_jt = st.form_submit_button("💾 Guardar cambios")
+
+            if submitted_jt:
+                try:
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            f'''
+                            UPDATE "{schema}".job_tracker
+                            SET
+                                contact_person      = %s,
+                                reach_out_day       = %s,
+                                stage               = %s,
+                                "type"              = %s,
+                                posting_url         = %s,
+                                message             = %s,
+                                next_stage_deadline = %s
+                            WHERE application_id = %s;
+                            ''',
+                            (
+                                contact_person or None,
+                                reach_out_day_str or None,
+                                stage or None,
+                                type_field or None,
+                                posting_url or None,
+                                message or None,
+                                next_stage_deadline_str or None,
+                                int(selected_row["application_id"]),
+                            ),
+                        )
+                        conn.commit()
+
+                    st.success("✅ Registro actualizado correctamente.")
+
+                except Exception as e:
+                    st.error(f"❌ Error al actualizar el registro: {e}")
+
+    def sql_conexion(self, sql_url):
                 try:
                     engine = create_engine(sql_url)
                     return engine
                 except Exception as e:
                     print(f"❌ Error connecting to database: {e}")
                     return None
-        
 if __name__ == "__main__":
     env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
     env_file = os.path.join(env_path, '.env')
