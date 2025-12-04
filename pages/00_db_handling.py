@@ -11,59 +11,58 @@ from pathlib import Path
 
 # Ruta base del proyecto (carpeta raíz del repo)
 BASE_PATH = Path(__file__).resolve().parent.parent
+env_file = BASE_PATH / ".env"
 
-ENV_MAIN_PATH_KEY = "MAIN_PATH"
-ENV_DB_URL_KEY = "DB_URL"
+folder_name = "MAIN_PATH"
+db_key = "DB_URL"
 
-IS_RENDER = os.getenv("RENDER") == "true"
+working_folder = None
+db_url = None
 
-working_folder: Path | None = None
-db_url: str | None = None
+if env_file.exists():
+    # ===== MODO LOCAL (.env) =====
+    load_dotenv(dotenv_path=env_file)
 
-if IS_RENDER:
-    # === MODO CLOUD (Render) ===
-    # Usamos una carpeta local dentro del repo como MAIN_PATH
-    working_folder = BASE_PATH / "temp_files"
+    main_path_str = os.getenv(folder_name)
+    db_url = os.getenv(db_key)
+
+    if not main_path_str:
+        st.error("❌ MAIN_PATH no está definido en el archivo .env.")
+        st.stop()
+
+    working_folder = Path(main_path_str)
     working_folder.mkdir(parents=True, exist_ok=True)
 
-    # Opcional: inyectar MAIN_PATH en os.environ para mantener compatibilidad
-    os.environ[ENV_MAIN_PATH_KEY] = str(working_folder)
-
-    # DB_URL viene de las variables de entorno configuradas en Render
-    db_url = os.getenv(ENV_DB_URL_KEY)
     if not db_url:
-        st.error("❌ La variable de entorno DB_URL no está configurada en Render.")
+        st.error("❌ DB_URL no está definido en el archivo .env.")
         st.stop()
 
 else:
-    # === MODO LOCAL ===
-    env_file = BASE_PATH / ".env"
-    if env_file.exists():
-        load_dotenv(dotenv_path=env_file)
+    # ===== MODO CLOUD / SIN .env (Render) =====
+    main_path_str = os.getenv(folder_name)
 
-        main_path_str = os.getenv(ENV_MAIN_PATH_KEY)
-        db_url = os.getenv(ENV_DB_URL_KEY)
+    # Si no está definida MAIN_PATH en el entorno, usamos un default
+    if not main_path_str:
+        main_path_str = str(BASE_PATH / "temp_files")
+        os.environ[folder_name] = main_path_str  # la inyectamos por si otro código la usa
 
-        if not main_path_str:
-            st.error("❌ MAIN_PATH no está definido en el archivo .env.")
-            st.stop()
+    working_folder = Path(main_path_str)
+    working_folder.mkdir(parents=True, exist_ok=True)
 
-        working_folder = Path(main_path_str)
-        working_folder.mkdir(parents=True, exist_ok=True)
-
-        if not db_url:
-            st.error("❌ DB_URL no está definido en el archivo .env.")
-            st.stop()
-    else:
-        st.error("❌ No se encontró el archivo .env en la raíz del proyecto.")
+    db_url = os.getenv(db_key)
+    if not db_url:
+        st.error("❌ La variable de entorno DB_URL no está configurada.")
         st.stop()
 
-# Rutas que usa tu lógica actual (sin cambiar el resto del código)
+# Rutas usadas en tu lógica
 output_path = working_folder / "Output CVs"
 output_path.mkdir(parents=True, exist_ok=True)
 
+
 templates_path = working_folder / "CV Templates"
 templates_path.mkdir(parents=True, exist_ok=True)
+
+# Cargar configuración YAML
 yaml_path = BASE_PATH / "config" / "config.yml"
 
 with open(yaml_path, "r") as file:
