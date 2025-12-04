@@ -13,34 +13,63 @@ def open_folder(path):
         subprocess.run(['open', path])
     else:
         st.error("Unsupported OS for opening folder.")
-# Configuración de rutas y carga de variables de entorno
-BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-env_file = os.path.join(BASE_PATH, ".env")
+# Ruta base del proyecto (carpeta raíz del repo)
+BASE_PATH = Path(__file__).resolve().parent.parent
 
-folder_name = "MAIN_PATH"
-db_key = "DB_URL"
+ENV_MAIN_PATH_KEY = "MAIN_PATH"
+ENV_DB_URL_KEY = "DB_URL"
 
-working_folder = None
-data_access = {}
+IS_RENDER = os.getenv("RENDER") == "true"
 
-if os.path.exists(env_file):
-    load_dotenv(dotenv_path=env_file)
-    working_folder = os.getenv(folder_name)
-    db_url = os.getenv(db_key)
+working_folder: Path | None = None
+db_url: str | None = None
+
+if IS_RENDER:
+    # === MODO CLOUD (Render) ===
+    # Usamos una carpeta local dentro del repo como MAIN_PATH
+    working_folder = BASE_PATH / "temp_files"
+    working_folder.mkdir(parents=True, exist_ok=True)
+
+    # Opcional: inyectar MAIN_PATH en os.environ para mantener compatibilidad
+    os.environ[ENV_MAIN_PATH_KEY] = str(working_folder)
+
+    # DB_URL viene de las variables de entorno configuradas en Render
+    db_url = os.getenv(ENV_DB_URL_KEY)
+    if not db_url:
+        st.error("❌ La variable de entorno DB_URL no está configurada en Render.")
+        st.stop()
+
 else:
-    st.error("❌ No se encontró el archivo .env en la raíz del proyecto.")
-    st.stop()
-output_path = os.path.join(working_folder, "Output CVs")
-os.makedirs(output_path, exist_ok=True)
-templates_path = os.path.join(working_folder, "CV Templates")
+    # === MODO LOCAL ===
+    env_file = BASE_PATH / ".env"
+    if env_file.exists():
+        load_dotenv(dotenv_path=env_file)
 
-yaml_path = os.path.join(BASE_PATH, "config", "config.yml")
-with open(yaml_path, "r") as f:
-    yaml_data = yaml.safe_load(f) or {}
+        main_path_str = os.getenv(ENV_MAIN_PATH_KEY)
+        db_url = os.getenv(ENV_DB_URL_KEY)
 
-# Inyectar el DB_URL que sacamos del .env
-yaml_data["DB_URL"] = db_url
-data_access = yaml_data
+        if not main_path_str:
+            st.error("❌ MAIN_PATH no está definido en el archivo .env.")
+            st.stop()
+
+        working_folder = Path(main_path_str)
+        working_folder.mkdir(parents=True, exist_ok=True)
+
+        if not db_url:
+            st.error("❌ DB_URL no está definido en el archivo .env.")
+            st.stop()
+    else:
+        st.error("❌ No se encontró el archivo .env en la raíz del proyecto.")
+        st.stop()
+
+# Rutas que usa tu lógica actual (sin cambiar el resto del código)
+output_path = working_folder / "Output CVs"
+output_path.mkdir(parents=True, exist_ok=True)
+
+templates_path = working_folder / "CV Templates"
+templates_path.mkdir(parents=True, exist_ok=True)
+
+
 st.set_page_config(page_title="Resumen aplicaciones", layout="wide")
 
 
