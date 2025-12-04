@@ -1,2 +1,6 @@
 streamlit
 dotenv
+psycopg2
+sqlalchemy
+PyYAML
+pandas
