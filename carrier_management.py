@@ -31,7 +31,7 @@ class CARRIER_MANAGEMENT:
             CSV_TO_SQL(self.working_folder, self.data_access).csv_to_sql_process()
         elif user_choice == "2":
             print("Poblando la base de datos con datos de ejemplo...")
-            streamlit_path = os.path.join(".", "Library", "concept_filing.py")
+            streamlit_path = os.path.join(".","concept_filing.py")
             try:
                 subprocess.run([sys.executable, "-m", "streamlit", "run", streamlit_path], check=True)
             except Exception as e:

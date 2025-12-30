@@ -9,7 +9,6 @@ from sqlalchemy import create_engine
 import subprocess
 from datetime import datetime
 
-
 class CV_GENERATION():
     def open_folder(self, folder_path):
         """Open a folder in the default file manager, cross-platform."""
@@ -21,9 +20,18 @@ class CV_GENERATION():
             subprocess.call(['xdg-open', folder_path])
         
     def get_cv_files(self):
+        def sql_conexion(sql_url):
+            try:
+                engine = create_engine(sql_url)
+                return engine
+            except Exception as e:
+                print(f"❌ Error connecting to database: {e}")
+                return None
+
         cv_files = [f for f in os.listdir(self.templates_path) if f.startswith('Curriculum') and f.endswith('.docx')]
         print(cv_files)
-        connexion = self.sql_conexion(self.data_access['DB_URL']).connect()
+        connexion = sql_conexion(self.data_access['DB_URL']).connect()
+
         query_langes = "SELECT lang FROM career_accelerator.languages"
         df_languages = pd.read_sql(query_langes, connexion)
         languages = list(df_languages['lang'].unique())
@@ -62,60 +70,135 @@ class CV_GENERATION():
 
         connexion.close()
 
-    def postgre_to_docx(self):
-        init(autoreset=True)
-        print(f"{Fore.BLUE}CARRIER MANAGEMENT{Style.RESET_ALL}")
-        
-        os.makedirs(self.templates_path, exist_ok=True)
+    def postgre_to_docx(self, doc_type, one_row_df, ui_log=None):
+        def _log(msg: str, level: str = "info"):
+            if ui_log is not None:
+                ui_log(msg, level)
+            else:
+                print(msg)       
+        """
+        New workflow:
+        - If df_cv is None: keep legacy flow (load all + user chooses desired row).
+        - If df_cv is provided (expected 1-row DataFrame): generate CV directly for that row.
+        - Cover letter is fetched by (job, lang, company_name). If it has no content beyond PK cols, skip.
+        """
+        # --- validate doc_type ---
+        allowed_docs = {"coverletter", "cv"}
+        doc_type = (doc_type or "").strip().lower()
 
-        query = "SELECT * FROM career_accelerator.applications"
-        
-        connexion = self.sql_conexion(self.data_access['DB_URL']).connect()
-        if connexion is None:
-            print("❌ No se pudo establecer conexión con SQL Server.")
+        if doc_type not in allowed_docs:
+            _log(f"Error: doc_type debe ser uno de: {', '.join(sorted(allowed_docs))}", "error")
             return False
 
-        try:
-            self.df_applications = pd.read_sql(query, connexion)
-            self.df_cover_letters = pd.read_sql("SELECT * FROM career_accelerator.cover_letters", connexion)
-            connexion.close()
-            print(f"✅ Loaded applications: {len(self.df_applications)} registros.")
-        except Exception as e:
-            print(f"❌ Error ejecutando la consulta SQL: {e}")
-            return
+        init(autoreset=True)
+        _log(f"{Fore.BLUE}CARRIER MANAGEMENT{Style.RESET_ALL}")
 
-        df_cv, df_cl = self.get_desired_row(self.df_applications, self.df_cover_letters)
-        lang = df_cv['lang'].values[0]
-        job = df_cv['job'].values[0]
-        if df_cv['cv_files'].values[0] is not None and df_cv['cv_files'].values[0] != '':
-            print(df_cv['cv_files'].head())
-            print(f"Generando CV con archivo vinculado...")
-            cv_file = df_cv['cv_files'].values[0]
-            cv_path = os.path.join(self.templates_path, cv_file)
-        else: 
-            cv_path = os.path.join(self.templates_path, f"Curriculum_{lang}.docx")
-        cover_letter_path = os.path.join(self.templates_path, f"Cover_letter_{lang}.docx")
-        output_cv = os.path.join(self.output_path, f"{job}_JACJ_CV.docx")
-        output_cl = os.path.join(self.output_path, f"{job}_JACJ_CLetter.docx")
-        if not os.path.exists(cv_path):
-            print(f"{Fore.RED}❌ No se encontró el template en: {cv_path}{Style.RESET_ALL}")
-            return
+        os.makedirs(self.templates_path, exist_ok=True)
+        os.makedirs(self.output_path, exist_ok=True)
 
-        if not os.path.exists(cover_letter_path):
-            print(f"{Fore.RED}❌ No se encontró el template en: {cover_letter_path}{Style.RESET_ALL}")
-            return
-        
-        # Selecciona template según modo
-        print(f"{Fore.CYAN}📄 Generando currículum...{Style.RESET_ALL}")
+        # --- validate DF ---
+        if one_row_df is None or getattr(one_row_df, "empty", True):
+            _log("❌ one_row_df vacío. No hay registro para generar documentos.", "error")
+            return False
+
+        if len(one_row_df) != 1:
+            _log("⚠️ El dataframe trae más de una fila. Se usará la primera.", "warning")
+            one_row_df = one_row_df.iloc[[0]].copy()
+
+        required_cols = ["job", "lang", "company_name"]
+        missing = [c for c in required_cols if c not in one_row_df.columns]
+        if missing:
+            _log(f"❌ Faltan columnas requeridas en one_row_df: {missing}", "error")
+            return False
+
+        # --- base fields ---
+        job_raw = one_row_df["job"].values[0] or ""
+        lang = one_row_df["lang"].values[0] or ""
+        company_name = one_row_df["company_name"].values[0] or ""
+
+        # sanitize job for filename
+        job = " ".join(str(job_raw).split())
+        for ch in [' ', '/', '\\', ':', '*', '?', '"', '<', '>', '|']:
+            job = job.replace(ch, "_")
+
+        # --- generate requested document ---
+        if doc_type == "cv":
+            _log(f"{Fore.CYAN}📄 Generando currículum...{Style.RESET_ALL}")
+
+            cv_files_val = ""
+            if "cv_files" in one_row_df.columns:
+                cv_files_val = one_row_df["cv_files"].values[0] or ""
+
+            if str(cv_files_val).strip():
+                _log("Usando CV template vinculado...", "info")
+                template_path = os.path.join(self.templates_path, str(cv_files_val).strip())
+            else:
+                template_path = os.path.join(self.templates_path, f"Curriculum_{lang}.docx")
+
+            if not os.path.exists(template_path):
+                _log(f"❌ No se encontró el template en: {template_path}", "error")
+                return False
+
+            output_path = os.path.join(self.output_path, f"{job}_JACJ_CV.docx")
+            self.populate_document(template_path, one_row_df, output_path)
+            self.open_word_path(output_path)
+            _log("✅ CV generado.", "success")
+            return True
+
+        elif doc_type == "coverletter":
+            raw_date = one_row_df["date"].values[0]
+
+            # Convert to a real datetime, then to python date
+            dt_date = pd.to_datetime(raw_date, errors="coerce")
+
+            if pd.isna(dt_date):
+                # handle missing/invalid date
+                day = month_num = year = None
+            else:
+                day = int(dt_date.day)
+                month_num = int(dt_date.month)
+                year = int(dt_date.year) 
+            date_issued = ""       
+            months = {
+                'English': ["January", "February", "March", "April", "May", "June",
+                            "July", "August", "September", "October", "November", "December"],
+                'Spanish': ["enero", "febrero", "marzo", "abril", "mayo", "junio",
+                            "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"],
+                'French': ["janvier", "février", "mars", "avril", "mai", "juin",
+                        "juillet", "août", "septembre", "octobre", "novembre", "décembre"]
+            }
+            
+            if lang == 'English':
+                suffix = 'th'
+                if day in [1, 21, 31]:
+                    suffix = 'st'
+                elif day in [2, 22]:
+                    suffix = 'nd'
+                elif day in [3, 23]:
+                    suffix = 'rd'
+                date_issued = f"Mexico City, {months['English'][month_num-1]} {day}{suffix}, {year}"
+
+            elif lang == 'Spanish':
+                date_issued = f"Ciudad de México, {day} de {months['Spanish'][month_num-1].capitalize()} de {year}"
+
+            elif lang == 'French':
+                date_issued = f"Mexico, le {day} {months['French'][month_num-1].capitalize()} {year}"
+            one_row_df['date_issued']= date_issued
+
+            _log(f"{Fore.CYAN}📄 Generando cover letter...{Style.RESET_ALL}")
+
+            template_path = os.path.join(self.templates_path, f"Cover_letter_{lang}.docx")
+            if not os.path.exists(template_path):
+                _log(f"❌ No se encontró el template en: {template_path}", "error")
+                return False
+
+            output_path = os.path.join(self.output_path, f"{job}_JACJ_CLetter.docx")
+            self.populate_document(template_path, one_row_df, output_path)
+            self.open_word_path(output_path)
+            _log("✅ Cover letter generada.", "success")
+            return True  
 
 
-        self.populate_document(cv_path, df_cv, output_cv)
-        self.open_word_path(output_cv)
-        print(f"{Fore.CYAN}📄 Generando carta...{Style.RESET_ALL}")
-        
-        self.populate_document(cover_letter_path, df_cl, output_cl)
-        self.open_word_path(output_cl)
-        
     def open_word_path(self, path):
         """Open a file in the default application, cross-platform."""
         if os.name == 'nt':
@@ -161,85 +244,7 @@ class CV_GENERATION():
             except Exception as e:
                 print(f"{Fore.RED}❌ Error generando {job}: {e}{Style.RESET_ALL}")
          
-    def get_desired_row(self, df_cv, df_cl):
-        columns_pk = ['job', 'lang', 'company_name']
-        max_length = len(df_cv)
-        for index, row in df_cv.iterrows():
-            print(f"{index} - {row[columns_pk]}")
-        while True:
-            selected_indices = input("Ingrese la fila que requieres para generar el cv")
-            try:
-                selected_index = int(selected_indices)
-                if 0 <= selected_index < max_length:
-                    break
-                else:
-                    print(f"Por favor, ingrese un número entre 0 y {max_length - 1}")
-            except ValueError:
-                print("Por favor, ingrese un número entero válido")
-        selected_row = df_cv.iloc[[selected_index]]
-        # 🔹 Filtrar df_cl donde job, lang y company_name coincidan
-        match_mask = (
-            (df_cl["job"] == selected_row["job"].values[0]) &
-            (df_cl["lang"] == selected_row["lang"].values[0]) &
-            (df_cl["company_name"] == selected_row["company_name"].values[0])
-        )
-        df_cl_match = df_cl.loc[match_mask]
 
-        print("Ingresa la fecha que quieras que aparezca en la carta (formato DD/MM/AAAA): \n")
-        str_date = input('DD/MM/AAAA: ')
-        input_date = datetime.strptime(str_date, '%d/%m/%Y') if str_date else None
-        lang = selected_row['lang'].values[0]
-        if input_date:
-            day = input_date.day
-            month_num = input_date.month
-            year = input_date.year
-
-            months = {
-                'English': ["January", "February", "March", "April", "May", "June",
-                            "July", "August", "September", "October", "November", "December"],
-                'Spanish': ["enero", "febrero", "marzo", "abril", "mayo", "junio",
-                            "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"],
-                'French': ["janvier", "février", "mars", "avril", "mai", "juin",
-                        "juillet", "août", "septembre", "octobre", "novembre", "décembre"]
-            }
-            
-            if lang == 'English':
-                suffix = 'th'
-                if day in [1, 21, 31]:
-                    suffix = 'st'
-                elif day in [2, 22]:
-                    suffix = 'nd'
-                elif day in [3, 23]:
-                    suffix = 'rd'
-                date_issued = f"Mexico City, {months['English'][month_num-1]} {day}{suffix}, {year}"
-
-            elif lang == 'Spanish':
-                date_issued = f"Ciudad de México, {day} de {months['Spanish'][month_num-1].capitalize()} de {year}"
-
-            elif lang == 'French':
-                date_issued = f"Mexico, le {day} {months['French'][month_num-1].capitalize()} {year}"
-
-            else:
-                date_issued = input_date.strftime('%d/%m/%Y')
-        else:
-            date_issued = datetime.today().strftime('%d/%m/%Y')
-
-
-        # Agregar al DataFrame
-        selected_row['date_issued'] = date_issued
-        df_cl_match['date_issued'] = date_issued
-        selected_row = selected_row.fillna('').replace({'na': '', 'Null': '', 'None': '', 'NULL': ''})
-        df_cl_match = df_cl_match.fillna('').replace({'na': '', 'Null': '', 'None': '', 'NULL': ''})
-        return selected_row, df_cl_match
-    
-    def sql_conexion(self, sql_url):
-        try:
-            engine = create_engine(sql_url)
-            return engine
-        except Exception as e:
-            print(f"❌ Error connecting to database: {e}")
-            return None
-    # Initialize the main components
     def __init__(self, working_folder, data_access):
         self.working_folder = working_folder
         os.makedirs(self.working_folder, exist_ok=True)
