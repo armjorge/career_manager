@@ -26,17 +26,12 @@ working_folder = db.working_folder
 st.page_link("concept_filing.py", label="🏠 Volver al panel principal")
 st.write("---")
 
-# Helper for logging in this view
 log_box = st.empty()
 def ui_log(msg: str, level: str = "info"):
-    if level == "success":
-        log_box.success(msg)
-    elif level == "warning":
-        log_box.warning(msg)
-    elif level == "error":
-        log_box.error(msg)
-    else:
-        log_box.info(msg)        
+    if level == "success": log_box.success(msg)
+    elif level == "warning": log_box.warning(msg)
+    elif level == "error": log_box.error(msg)
+    else: log_box.info(msg)        
 
 st.title("📝 Applications")
 
@@ -45,11 +40,7 @@ cols_show = ["job", "company_type", "lang", "status", "company_name", "created_a
 
 # === Load FULL table ===
 try:
-    df_full = pd.read_sql(f'''
-        SELECT *
-        FROM "{schema}".applications
-        ORDER BY created_at DESC;
-    ''', conn)
+    df_full = pd.read_sql(f'SELECT * FROM "{schema}".applications ORDER BY created_at DESC;', conn)
 except Exception:
     df_full = pd.DataFrame()
 
@@ -84,31 +75,22 @@ if not df_full.empty and PK in df_full.columns:
         + " | " + options["company_name"].fillna("").astype(str)
         + " | " + options["created_at"].astype(str)
     )
-
     label_list = options["label"].tolist()
     pk_by_label = dict(zip(options["label"], options[PK]))
-
-    selected_label = st.selectbox(
-        "Selecciona una aplicación existente (opcional para editar):",
-        [""] + label_list
-    )
+    selected_label = st.selectbox("Selecciona una aplicación existente (opcional para editar):", [""] + label_list)
 
     if selected_label:
         selected_pk = pk_by_label[selected_label]
         original_row = df_full[df_full[PK] == selected_pk].iloc[0]
         original = original_row.to_dict()
-else:
-    st.warning(f"No encontré columna '{PK}'.")
 
-# === Helper: normalize values ===
 def _norm(v):
-    return "" if v is None else v
+    return "" if v is None else str(v).strip()
 
-# === Fetch Options for Selectboxes ===
+# === Fetch Options ===
 try:
     lang_opts = pd.read_sql(f'SELECT lang FROM "{schema}".languages ORDER BY lang;', conn)["lang"].dropna().astype(str).tolist()
 except: lang_opts = []
-
 try:
     company_opts = pd.read_sql(f'SELECT company_name FROM "{schema}".companies ORDER BY company_name;', conn)["company_name"].dropna().astype(str).tolist()
 except: company_opts = []
@@ -119,19 +101,16 @@ status_opts = ["applied", "interviewing", "offered", "rejected"]
 with st.form("applications_form", clear_on_submit=False):
     job_val = st.text_input("Job position", value=original.get("job", "") or "")
     
-    # Language
     default_lang = (original.get("lang") or "")
     if default_lang and default_lang not in lang_opts: lang_opts = [default_lang] + lang_opts
     lang_val = st.selectbox("Language", options=lang_opts, index=lang_opts.index(default_lang) if default_lang in lang_opts else 0)
 
-    # Company
     default_company = (original.get("company_name") or "")
     if default_company and default_company not in company_opts: company_opts = [default_company] + company_opts
     company_name_val = st.selectbox("Company name", options=company_opts, index=company_opts.index(default_company) if default_company in company_opts else 0)
 
-    # Company Type (Filtered)
     try:
-        company_type_opts = pd.read_sql(f'SELECT company_type FROM "{schema}".companies WHERE company_name = %(cn)s ORDER BY company_type;', 
+        company_type_opts = pd.read_sql(f'SELECT company_type FROM "{schema}".companies WHERE company_name = %(cn)s;', 
                                         conn, params={"cn": company_name_val})["company_type"].dropna().astype(str).tolist()
     except: company_type_opts = []
     
@@ -141,17 +120,29 @@ with st.form("applications_form", clear_on_submit=False):
 
     status_val = st.selectbox("Status", options=status_opts, index=status_opts.index(original.get("status")) if original.get("status") in status_opts else 0)
 
-    # Long Text Fields
-    education1_val = st.text_area("Education 1", value=original.get("education1", "") or "", height=90)
     experience1_val = st.text_area("Experience 1", value=original.get("experience1", "") or "", height=120)
+    experience2_val = st.text_area("Experience 2", value=original.get("experience2", "") or "", height=120)
+    experience3_val = st.text_area("Experience 3", value=original.get("experience3", "") or "", height=120)    
+    education1_val = st.text_area("Education 1", value=original.get("education1", "") or "", height=90)
+    education2_val = st.text_area("Education 2", value=original.get("education2", "") or "", height=90)
+    education3_val = st.text_area("Education 3", value=original.get("education3", "") or "", height=90)
     skills_val = st.text_area("Skills", value=original.get("skills", "") or "", height=120)
-    # ... (other text areas follow the same pattern)
 
+    try:
+        cv_file_opts = pd.read_sql(f'SELECT cv_file FROM "{schema}".cv_files WHERE lang = %(lang)s;', conn, params={"lang": lang_val})["cv_file"].dropna().astype(str).tolist()
+    except: cv_file_opts = []
+    cv_file_opts = [""] + cv_file_opts
+    default_cv_file = (original.get("cv_files") or "")
+    if default_cv_file and default_cv_file not in cv_file_opts: cv_file_opts = [default_cv_file] + cv_file_opts
+    cv_files_val = st.selectbox("CV file (optional)", options=cv_file_opts, index=cv_file_opts.index(default_cv_file) if default_cv_file in cv_file_opts else 0)
+
+    # UPDATED: Ensure all UI fields are in this dictionary
     new_values = {
         "job": job_val, "lang": lang_val, "company_name": company_name_val,
         "company_type": company_type_val, "status": status_val,
-        "education1": education1_val, "experience1": experience1_val, "skills": skills_val
-        # add other fields as needed
+        "experience1": experience1_val, "experience2": experience2_val, "experience3": experience3_val,
+        "education1": education1_val, "education2": education2_val, "education3": education3_val,
+        "skills": skills_val, "cv_files": cv_files_val
     }
 
     col_a, col_b = st.columns(2)
@@ -159,29 +150,51 @@ with st.form("applications_form", clear_on_submit=False):
     submit_insert = col_b.form_submit_button("➕ Crear nueva aplicación")
 
 # === Database Actions ===
-if submit_update and selected_pk:
-    changed = {k: v for k, v in new_values.items() if _norm(v) != _norm(original.get(k))}
-    if changed:
-        set_clause = ", ".join([f'"{k}" = %({k})s' for k in changed.keys()])
-        params = {**changed, PK: selected_pk}
-        with conn.cursor() as cur:
-            cur.execute(f'UPDATE "{schema}".applications SET {set_clause} WHERE "{PK}" = %({PK})s;', params)
-        conn.commit()
-        st.success("Actualizado ✅")
-        st.rerun()
+if submit_update:
+    if not selected_pk:
+        st.error("Por favor, selecciona una aplicación de la lista para editar.")
+    else:
+        # Compare normalized values to detect actual changes
+        changed = {k: v for k, v in new_values.items() if _norm(v) != _norm(original.get(k))}
+        
+        if not changed:
+            st.info("No se detectaron cambios.")
+        else:
+            try:
+                set_clause = ", ".join([f'"{k}" = %({k})s' for k in changed.keys()])
+                # Add the PK to the parameters dictionary
+                params = {**changed, "target_pk": selected_pk}
+                
+                query = f'UPDATE "{schema}".applications SET {set_clause} WHERE "{PK}" = %(target_pk)s;'
+                
+                with conn.cursor() as cur:
+                    cur.execute(query, params)
+                conn.commit()
+                st.success(f"Actualizado correctamente ✅ ({len(changed)} campos)")
+                st.rerun()
+            except Exception as e:
+                conn.rollback()
+                st.error(f"Error SQL: {e}")
 
 if submit_insert:
-    cols_sql = ", ".join([f'"{c}"' for c in new_values.keys()])
-    placeholders = ", ".join([f"%({c})s" for c in new_values.keys()])
-    with conn.cursor() as cur:
-        cur.execute(f'INSERT INTO "{schema}".applications ({cols_sql}) VALUES ({placeholders});', new_values)
-    conn.commit()
-    st.success("Creada ✅")
-    st.rerun()
+    try:
+        cols_sql = ", ".join([f'"{c}"' for c in new_values.keys()])
+        placeholders = ", ".join([f"%({c})s" for c in new_values.keys()])
+        with conn.cursor() as cur:
+            cur.execute(f'INSERT INTO "{schema}".applications ({cols_sql}) VALUES ({placeholders});', new_values)
+        conn.commit()
+        st.success("Creada ✅")
+        st.rerun()
+    except Exception as e:
+        conn.rollback()
+        st.error(f"Error al insertar: {e}")
 
-# === CV Generation (Using Shared Paths) ===
-# Note: gen requires data_access which we can add to DB_UTILS or handle here
+# === CV Generation ===
 gen = CV_GENERATION(working_folder, {"DB_URL": os.getenv("DB_POSTGRESQL")}) 
+
+if st.button("📄 Actualizar lista de CV templates"):
+    gen.get_cv_files()
+    st.rerun()
 
 if st.button("📄 Generar CV para este registro", disabled=(selected_pk is None)):
     df_cv = df_full[df_full[PK] == selected_pk].copy()
