@@ -1,18 +1,41 @@
+# Importar librerías
 import streamlit as st
+from dotenv import load_dotenv
+from Library.db_utils import DB_UTILS
+from pathlib import Path
+
+# Cargar variables de entorno
+BASE_PATH = Path(__file__).resolve().parent
+env_file = BASE_PATH / ".env"
+if env_file.exists():
+    load_dotenv(dotenv_path=env_file)
+
 
 st.set_page_config(page_title="Carrier · Panel principal", layout="centered")
 
-st.title("🚀 Carrier · Panel principal")
+st.title("🚀 Career · Panel principal")
 st.write("Selecciona una sección para continuar:")
 
 st.page_link(
-    "pages/00_db_handling.py",
-    label="Administración de la base",
+    "pages/00_companies.py",
+    label="Empresas",
     icon="🗃️",
 )
 
 st.page_link(
-    "pages/01_cv_generation.py",
-    label="Generación de archivos",
-    icon="📄",
+    "pages/01_applications.py",
+    label="Aplicaciones",
+    icon="🗃️",
+)
+
+st.page_link(
+    "pages/02_cover_letters.py",
+    label="Cartas",
+    icon="🗃️",
+)
+
+st.page_link(
+    "pages/03_job_tracker.py",
+    label="Tracker de aplicaciones",
+    icon="🗃️",
 )
