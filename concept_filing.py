@@ -39,3 +39,9 @@ st.page_link(
     label="Tracker de aplicaciones",
     icon="🗃️",
 )
+
+st.page_link(
+    "pages/04_pdf_handling.py",
+    label="Cargar PDF's",
+    icon="🗃️",
+)

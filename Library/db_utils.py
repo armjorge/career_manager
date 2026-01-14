@@ -57,4 +57,9 @@ class DB_UTILS():
         return output_path, templates_path
 
     
-    
+    @st.cache_resource
+    def mongo_db_connexion(_self):
+        from pymongo import MongoClient
+        client = MongoClient(os.getenv("DB_MONGO"))
+        # Return the specific collection directly
+        return client['applications']['pdfs']
