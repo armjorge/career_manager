@@ -20,6 +20,7 @@ if 'db' not in st.session_state:
 db = st.session_state.db
 schema = db.schema
 conn = db.get_db_connection()
+engine = db.get_engine()
 working_folder = db.working_folder
 
 mongo_db = db.mongo_db_connexion()
@@ -38,7 +39,7 @@ mongo_collection = db.mongo_db_connexion()
 
 # Fetch SQL Data
 try:
-    df_full = pd.read_sql(f'SELECT * FROM "{db.schema}".applications ORDER BY created_at DESC;', conn)
+    df_full = pd.read_sql(f'SELECT * FROM "{db.schema}".applications ORDER BY created_at DESC;', engine)
 except Exception:
     df_full = pd.DataFrame()
 

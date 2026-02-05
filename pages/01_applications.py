@@ -20,6 +20,7 @@ if 'db' not in st.session_state:
 db = st.session_state.db
 schema = db.schema
 conn = db.get_db_connection()
+engine = db.get_engine()
 working_folder = db.working_folder
 
 # 4) Layout & Navigation
@@ -40,7 +41,7 @@ cols_show = ["job", "company_type", "lang", "status", "company_name", "created_a
 
 # === Load FULL table ===
 try:
-    df_full = pd.read_sql(f'SELECT * FROM "{schema}".applications ORDER BY created_at DESC;', conn)
+    df_full = pd.read_sql(f'SELECT * FROM "{schema}".applications ORDER BY created_at DESC;', engine)
 except Exception:
     df_full = pd.DataFrame()
 
@@ -89,10 +90,10 @@ def _norm(v):
 
 # === Fetch Options ===
 try:
-    lang_opts = pd.read_sql(f'SELECT lang FROM "{schema}".languages ORDER BY lang;', conn)["lang"].dropna().astype(str).tolist()
+    lang_opts = pd.read_sql(f'SELECT lang FROM "{schema}".languages ORDER BY lang;', engine)["lang"].dropna().astype(str).tolist()
 except: lang_opts = []
 try:
-    company_opts = pd.read_sql(f'SELECT company_name FROM "{schema}".companies ORDER BY company_name;', conn)["company_name"].dropna().astype(str).tolist()
+    company_opts = pd.read_sql(f'SELECT company_name FROM "{schema}".companies ORDER BY company_name;', engine)["company_name"].dropna().astype(str).tolist()
 except: company_opts = []
 
 status_opts = ["applied", "interviewing", "offered", "rejected"]
@@ -111,8 +112,9 @@ with st.form("applications_form", clear_on_submit=False):
 
     try:
         company_type_opts = pd.read_sql(f'SELECT company_type FROM "{schema}".companies WHERE company_name = %(cn)s;', 
-                                        conn, params={"cn": company_name_val})["company_type"].dropna().astype(str).tolist()
+                                        engine, params={"cn": company_name_val})["company_type"].dropna().astype(str).tolist()
     except: company_type_opts = []
+
     
     default_ct = (original.get("company_type") or "")
     if default_ct and default_ct not in company_type_opts: company_type_opts = [default_ct] + company_type_opts
@@ -129,8 +131,9 @@ with st.form("applications_form", clear_on_submit=False):
     skills_val = st.text_area("Skills", value=original.get("skills", "") or "", height=120)
 
     try:
-        cv_file_opts = pd.read_sql(f'SELECT cv_file FROM "{schema}".cv_files WHERE lang = %(lang)s;', conn, params={"lang": lang_val})["cv_file"].dropna().astype(str).tolist()
+        cv_file_opts = pd.read_sql(f'SELECT cv_file FROM "{schema}".cv_files WHERE lang = %(lang)s;', engine, params={"lang": lang_val})["cv_file"].dropna().astype(str).tolist()
     except: cv_file_opts = []
+
     cv_file_opts = [""] + cv_file_opts
     default_cv_file = (original.get("cv_files") or "")
     if default_cv_file and default_cv_file not in cv_file_opts: cv_file_opts = [default_cv_file] + cv_file_opts
@@ -161,32 +164,33 @@ if submit_update:
             st.info("No se detectaron cambios.")
         else:
             try:
+                conn = db.get_db_connection()  # fresh connection for write
                 set_clause = ", ".join([f'"{k}" = %({k})s' for k in changed.keys()])
-                # Add the PK to the parameters dictionary
                 params = {**changed, "target_pk": selected_pk}
-                
                 query = f'UPDATE "{schema}".applications SET {set_clause} WHERE "{PK}" = %(target_pk)s;'
-                
                 with conn.cursor() as cur:
                     cur.execute(query, params)
                 conn.commit()
+                conn.close()
                 st.success(f"Actualizado correctamente ✅ ({len(changed)} campos)")
                 st.rerun()
             except Exception as e:
-                conn.rollback()
+                if 'conn' in locals(): conn.rollback(); conn.close()
                 st.error(f"Error SQL: {e}")
 
 if submit_insert:
     try:
+        conn = db.get_db_connection()
         cols_sql = ", ".join([f'"{c}"' for c in new_values.keys()])
         placeholders = ", ".join([f"%({c})s" for c in new_values.keys()])
         with conn.cursor() as cur:
             cur.execute(f'INSERT INTO "{schema}".applications ({cols_sql}) VALUES ({placeholders});', new_values)
         conn.commit()
+        conn.close()
         st.success("Creada ✅")
         st.rerun()
     except Exception as e:
-        conn.rollback()
+        if 'conn' in locals(): conn.rollback(); conn.close()
         st.error(f"Error al insertar: {e}")
 
 # === CV Generation ===

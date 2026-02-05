@@ -23,6 +23,7 @@ if 'db' not in st.session_state:
 db = st.session_state.db
 schema = db.schema
 conn = db.get_db_connection()
+engine = db.get_engine()
 
 # 4) UI Content
 st.title("🏢 Companies & Business Types")
@@ -36,7 +37,7 @@ with col1:
     try:
         df_types = pd.read_sql(
             f'SELECT type_business FROM "{schema}".company_types ORDER BY type_business;',
-            conn
+            engine
         )
     except Exception:
         df_types = pd.DataFrame()
@@ -49,18 +50,21 @@ with col1:
     if st.button("Agregar Company Type"):
         if new_type_business:
             try:
+                conn = db.get_db_connection()
                 with conn.cursor() as cur:
                     cur.execute(
                         f'INSERT INTO "{schema}".company_types (type_business) VALUES (%s) ON CONFLICT DO NOTHING;',
                         (new_type_business,)
                     )
-                    conn.commit()
+                conn.commit()
+                conn.close()
                 st.success("✅ Tipo de negocio agregado correctamente.")
-                st.rerun() # Refresh to show new data
+                st.rerun()
             except Exception as e:
                 st.error(f"❌ Error al agregar tipo de negocio: {e}")
         else:
             st.warning("⚠️ El tipo de negocio no puede estar vacío.")
+
 
 # === 🏢 Sección: Companies ===
 with col2:
@@ -80,10 +84,11 @@ with col2:
     new_company_name = st.text_input("Nombre de la Company")
 
     # Load options for dropdown
+    
     try:
         company_types_df = pd.read_sql(
             f'SELECT type_business FROM "{schema}".company_types ORDER BY type_business;',
-            conn
+            engine
         )
         company_type_options = company_types_df['type_business'].tolist()
     except Exception:
@@ -94,14 +99,16 @@ with col2:
     if st.button("Agregar Company"):
         if new_company_name and selected_company_type:
             try:
+                conn = db.get_db_connection()
                 with conn.cursor() as cur:
                     cur.execute(
                         f'INSERT INTO "{schema}".companies (company_name, company_type) VALUES (%s, %s) ON CONFLICT DO NOTHING;',
                         (new_company_name, selected_company_type)
                     )
-                    conn.commit()
+                conn.commit()
+                conn.close()
                 st.success("✅ Company agregada correctamente.")
-                st.rerun() # Refresh to show new data
+                st.rerun()
             except Exception as e:
                 st.error(f"❌ Error al agregar Company: {e}")
         else:

@@ -19,6 +19,7 @@ if 'db' not in st.session_state:
 db = st.session_state.db
 schema = db.schema
 conn = db.get_db_connection()
+engine = db.get_engine()
 working_folder = db.working_folder
 
 # 4) Navigation
@@ -49,7 +50,7 @@ try:
         FROM "{schema}".cover_letters
         ORDER BY cover_id DESC;
         ''',
-        conn
+        engine
     )
 except Exception as e:
     st.error(f"Error loading cover letters: {e}")
@@ -113,6 +114,7 @@ with st.form("cover_letter_form"):
     if submitted:
         try:
             cover_id = int(current["cover_id"])
+            conn = db.get_db_connection()
             with conn.cursor() as cur:
                 cur.execute(
                     f'''
@@ -123,10 +125,11 @@ with st.form("cover_letter_form"):
                     (header, address, picked_date, body, end_text, sign, cover_id)
                 )
             conn.commit()
+            conn.close()
             st.success("✅ Carta guardada correctamente.")
             st.rerun()
         except Exception as e:
-            conn.rollback()
+            if 'conn' in locals(): conn.rollback(); conn.close()
             st.error(f"❌ Error al guardar la carta: {e}")
 
 # === Generar documento ===

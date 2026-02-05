@@ -17,6 +17,7 @@ if 'db' not in st.session_state:
 db = st.session_state.db
 schema = db.schema
 conn = db.get_db_connection()
+engine = db.get_engine()
 
 # 4) Navigation
 st.page_link("concept_filing.py", label="🏠 Volver al panel principal")
@@ -42,7 +43,7 @@ try:
         FROM "{schema}".job_tracker
         ORDER BY company, position;
         ''',
-        conn
+        engine
     )
 except Exception as e:
     st.error(f"❌ Error al cargar job_tracker: {e}")
@@ -103,6 +104,7 @@ with st.form("job_tracker_edit_form"):
 
 if submitted_jt:
     try:
+        conn = db.get_db_connection()
         with conn.cursor() as cur:
             cur.execute(
                 f'''
@@ -129,6 +131,7 @@ if submitted_jt:
                 ),
             )
             conn.commit()
+            conn.close()
 
         st.success("✅ Registro actualizado correctamente.")
         st.rerun() # Refresh table and selection

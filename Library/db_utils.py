@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 import psycopg2
 from urllib.parse import urlparse
 import streamlit as st
+from sqlalchemy import create_engine
 
 class DB_UTILS():
     def __init__(self, working_folder=None):
@@ -28,24 +29,43 @@ class DB_UTILS():
         # Create directories
         os.makedirs(self.output_path, exist_ok=True)
         os.makedirs(self.templates_path, exist_ok=True)
-
     @st.cache_resource
-    def get_db_connection(_self):
-        # Use the EXACT key from your .env
+    def get_engine(_self):
+        """Return a cached SQLAlchemy engine (used for pandas.read_sql)."""
         db_url = os.getenv("DB_POSTGRESQL")
-        
         if not db_url:
             st.error("❌ DB_POSTGRESQL not found in environment variables!")
             st.stop()
-            
+        try:
+            engine = create_engine(db_url, pool_pre_ping=True)
+            return engine
+        except Exception as e:
+            st.error(f"❌ Error creating SQLAlchemy engine: {e}")
+            st.stop()
+
+    def get_db_connection(self):
+        """
+        Create a fresh psycopg2 connection. Not cached — callers should request
+        a new connection right before doing cursor/commit/rollback operations.
+        """
+        db_url = os.getenv("DB_POSTGRESQL")
+        if not db_url:
+            st.error("❌ DB_POSTGRESQL not found in environment variables!")
+            st.stop()
         parsed = urlparse(db_url)
-        return psycopg2.connect(
-            dbname=parsed.path.lstrip('/'),
-            user=parsed.username,
-            password=parsed.password,
-            host=parsed.hostname,
-            port=parsed.port
-        )
+        try:
+            conn = psycopg2.connect(
+                dbname=parsed.path.lstrip('/'),
+                user=parsed.username,
+                password=parsed.password,
+                host=parsed.hostname,
+                port=parsed.port
+            )
+            conn.autocommit = False
+            return conn
+        except Exception as e:
+            st.error(f"❌ Error opening psycopg2 connection: {e}")
+            st.stop()
         
     def cv_templates_output(self):
         # Rutas usadas en tu lógica
