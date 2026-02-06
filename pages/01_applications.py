@@ -93,7 +93,7 @@ try:
     lang_opts = pd.read_sql(f'SELECT lang FROM "{schema}".languages ORDER BY lang;', engine)["lang"].dropna().astype(str).tolist()
 except: lang_opts = []
 try:
-    company_opts = pd.read_sql(f'SELECT company_name FROM "{schema}".companies ORDER BY company_name;', engine)["company_name"].dropna().astype(str).tolist()
+    company_opts = pd.read_sql(f'SELECT company_name FROM "{schema}".companies ORDER BY created_at DESC;', engine)["company_name"].dropna().astype(str).tolist()
 except: company_opts = []
 
 status_opts = ["applied", "interviewing", "offered", "rejected"]
