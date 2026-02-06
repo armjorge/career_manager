@@ -3,6 +3,7 @@ import pandas as pd
 import os
 import sys
 
+
 # 1) Setup Path to find Library
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from Library.db_utils import DB_UTILS
@@ -23,119 +24,113 @@ engine = db.get_engine()
 st.page_link("concept_filing.py", label="🏠 Volver al panel principal")
 st.write("---")
 
-st.title("📌 Job tracker")
+st.title("📌 Applications")
 
-# === Load job_tracker table ===
+# === Load applications table (only needed cols) ===
 try:
-    jt_df = pd.read_sql(
-        f'''
+    apps_df = pd.read_sql(
+        f"""
         SELECT
             application_id,
-            company,
-            contact_person,
-            reach_out_day,
-            stage,
-            "type",
-            position,
-            posting_url,
-            message,
-            next_stage_deadline
-        FROM "{schema}".job_tracker
-        ORDER BY company, position;
-        ''',
+            job,
+            company_type,
+            company_name,
+            created_at,
+            status,
+            lang
+        FROM "{schema}".applications
+        ;
+        """,
         engine
     )
 except Exception as e:
-    st.error(f"❌ Error al cargar job_tracker: {e}")
+    st.error(f"❌ Error al cargar applications: {e}")
     st.stop()
 
-if jt_df.empty:
-    st.warning("⚠️ No hay registros en job_tracker. Crea aplicaciones primero.")
+if apps_df.empty:
+    st.warning("⚠️ No hay registros en applications. Agrega aplicaciones primero.")
     st.stop()
 
-# === Display current records ===
-st.subheader("📋 Registros actuales")
-display_cols = [
-    "company", "contact_person", "reach_out_day", 
-    "stage", "type", "position", "posting_url", 
-    "message", "next_stage_deadline"
-]
-st.dataframe(jt_df[display_cols], use_container_width=True)
+# Normalize datetimes
+apps_df["created_at"] = pd.to_datetime(apps_df["created_at"])
 
 st.markdown("---")
-st.markdown("### ✏️ Editar un registro")
 
-# === Selector company – position ===
-labels = [f"{row.company} — {row.position}" for _, row in jt_df.iterrows()]
-indices = list(range(len(labels)))
+# === Filters ===
+st.subheader("Filtros")
+col1, col2, col3, col4 = st.columns([2,2,2,2])
 
-selected_index = st.selectbox(
-    "Selecciona la company–position a editar:",
-    indices,
-    format_func=lambda i: labels[i],
+# Date range filter defaults
+min_date = apps_df["created_at"].dt.date.min()
+max_date = apps_df["created_at"].dt.date.max()
+date_range = col1.date_input("Rango de fechas (created_at)", value=(min_date, max_date))
+if isinstance(date_range, tuple) and len(date_range) == 2:
+    start_date, end_date = date_range
+else:
+    start_date = min_date
+    end_date = max_date
+
+# Multi-select filters
+jobs = sorted(apps_df["job"].dropna().unique().tolist())
+company_types = sorted(apps_df["company_type"].dropna().unique().tolist())
+company_names = sorted(apps_df["company_name"].dropna().unique().tolist())
+statuses = sorted(apps_df["status"].dropna().unique().tolist())
+langs = sorted(apps_df["lang"].dropna().unique().tolist())
+
+sel_jobs = col2.multiselect("Job", options=jobs)
+sel_company_type = col3.multiselect("Company type", options=company_types)
+sel_company_name = col4.multiselect("Company name", options=company_names)
+sel_status = col1.multiselect("Status", options=statuses)
+sel_lang = col2.multiselect("Lang", options=langs)
+
+# Apply filters
+mask = (
+    (apps_df["created_at"].dt.date >= start_date) &
+    (apps_df["created_at"].dt.date <= end_date)
 )
+if sel_jobs:
+    mask &= apps_df["job"].isin(sel_jobs)
+if sel_company_type:
+    mask &= apps_df["company_type"].isin(sel_company_type)
+if sel_company_name:
+    mask &= apps_df["company_name"].isin(sel_company_name)
+if sel_status:
+    mask &= apps_df["status"].isin(sel_status)
+if sel_lang:
+    mask &= apps_df["lang"].isin(sel_lang)
 
-selected_row = jt_df.iloc[selected_index]
+filtered = apps_df[mask].copy()
 
-# Read-only fields for context
-col_left, col_right = st.columns(2)
-col_left.text_input("Company", value=selected_row["company"], disabled=True)
-col_right.text_input("Position", value=selected_row["position"], disabled=True)
+# === Metrics cards ===
+st.markdown("---")
+st.subheader("Métricas")
+card1, card2, card3, card4 = st.columns(4)
 
-# Helper to handle NULLs
-def safe_str(value):
-    return str(value) if pd.notna(value) else ""
+# Number of records in selected date range (and other filters)
+card1.metric(label="Registros en rango", value=len(filtered))
 
-# === Edit form ===
-with st.form("job_tracker_edit_form"):
-    c1, c2 = st.columns(2)
-    contact_person = c1.text_input("Contact person", value=safe_str(selected_row["contact_person"]))
-    reach_out_day_str = c2.text_input("Reach out day (YYYY-MM-DD)", value=safe_str(selected_row["reach_out_day"]))
-    
-    c3, c4 = st.columns(2)
-    stage = c3.text_input("Stage", value=safe_str(selected_row["stage"]))
-    type_field = c4.text_input("Type", value=safe_str(selected_row["type"]))
-    
-    posting_url = st.text_input("Posting URL", value=safe_str(selected_row["posting_url"]))
-    message = st.text_area("Message", value=safe_str(selected_row["message"]), height=150)
-    next_stage_deadline_str = st.text_input("Next stage deadline (YYYY-MM-DD)", value=safe_str(selected_row["next_stage_deadline"]))
+# Monthly total applications (for the month of the end_date)
+if not filtered.empty:
+    end_month = pd.to_datetime(end_date).to_period("M")
+    monthly_total = filtered[filtered["created_at"].dt.to_period("M") == end_month].shape[0]
+else:
+    monthly_total = 0
+card2.metric(label="Total mes seleccionado", value=monthly_total)
 
-    submitted_jt = st.form_submit_button("💾 Guardar cambios")
+# Overall number of applications (entire table)
+overall_total = apps_df.shape[0]
+card3.metric(label="Total aplicaciones (global)", value=overall_total)
 
-if submitted_jt:
-    try:
-        conn = db.get_db_connection()
-        with conn.cursor() as cur:
-            cur.execute(
-                f'''
-                UPDATE "{schema}".job_tracker
-                SET
-                    contact_person      = %s,
-                    reach_out_day       = %s,
-                    stage               = %s,
-                    "type"              = %s,
-                    posting_url         = %s,
-                    message             = %s,
-                    next_stage_deadline = %s
-                WHERE application_id = %s;
-                ''',
-                (
-                    contact_person or None,
-                    reach_out_day_str or None,
-                    stage or None,
-                    type_field or None,
-                    posting_url or None,
-                    message or None,
-                    next_stage_deadline_str or None,
-                    int(selected_row["application_id"]),
-                ),
-            )
-            conn.commit()
-            conn.close()
+# Starting date (earliest created_at in table)
+start_dt = apps_df["created_at"].min()
+start_str = start_dt.strftime("%Y-%m-%d") if pd.notnull(start_dt) else "-"
+card4.metric(label="Fecha inicio (primer registro)", value=start_str)
 
-        st.success("✅ Registro actualizado correctamente.")
-        st.rerun() # Refresh table and selection
+st.markdown("---")
 
-    except Exception as e:
-        conn.rollback()
-        st.error(f"❌ Error al actualizar el registro: {e}")
+# === Display filtered table (only filter columns) ===
+st.subheader("Registros filtrados")
+display_cols = ["job", "company_type", "company_name", "created_at", "status", "lang"]
+st.dataframe(filtered[display_cols].sort_values("created_at", ascending=False), use_container_width=True)
+
+
