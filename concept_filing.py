@@ -11,15 +11,15 @@ if env_file.exists():
     load_dotenv(dotenv_path=env_file)
 
 
-st.set_page_config(page_title="Carrier · Panel principal", layout="centered")
+st.set_page_config(page_title="Administrador de carrera · Panel principal", layout="centered")
 
-st.title("🚀 Career · Panel principal")
+st.title("🚀 Administrador de Carrera · Panel principal")
 st.write("Selecciona una sección para continuar:")
 
 st.page_link(
     "pages/00_companies.py",
     label="Empresas",
-    icon="🗃️",
+    icon="🏢",
 )
 
 st.page_link(
@@ -30,18 +30,18 @@ st.page_link(
 
 st.page_link(
     "pages/02_cover_letters.py",
-    label="Cartas",
-    icon="🗃️",
+    label="Cartas presentación",
+    icon="✉️",
 )
 
 st.page_link(
     "pages/03_job_tracker.py",
     label="Tracker de aplicaciones",
-    icon="🗃️",
+    icon="📈",
 )
 
 st.page_link(
     "pages/04_pdf_handling.py",
     label="Cargar PDF's",
-    icon="🗃️",
+    icon="📄",
 )

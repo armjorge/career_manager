@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import os
 import sys
+import plotly.express as px
+import plotly.graph_objects as go
 
 
 # 1) Setup Path to find Library
@@ -53,6 +55,17 @@ if apps_df.empty:
 
 # Normalize datetimes
 apps_df["created_at"] = pd.to_datetime(apps_df["created_at"])
+
+# 2. Localize to UTC (assuming your DB server uses UTC) 
+# and then convert to GMT-6
+# We use 'Etc/GMT+6' because in the TZ database, signs are reversed, 
+# or use a city name like 'America/Mexico_City' to handle Daylight Savings.
+apps_df["created_at"] = (
+    apps_df["created_at"]
+    .dt.tz_localize('UTC') 
+    .dt.tz_convert('America/Mexico_City')
+)
+
 
 st.markdown("---")
 
@@ -127,10 +140,73 @@ start_str = start_dt.strftime("%Y-%m-%d") if pd.notnull(start_dt) else "-"
 card4.metric(label="Fecha inicio (primer registro)", value=start_str)
 
 st.markdown("---")
+## Sección de inteligencia
+import streamlit as st
+import pandas as pd
+import plotly.graph_objects as go
 
-# === Display filtered table (only filter columns) ===
-st.subheader("Registros filtrados")
-display_cols = ["job", "company_type", "company_name", "created_at", "status", "lang"]
-st.dataframe(filtered[display_cols].sort_values("created_at", ascending=False), use_container_width=True)
+# --- 1. PREPARE FILTER DATA ---
+# Create sorting key and display key
+apps_df['month_year_key'] = apps_df['created_at'].dt.strftime('%Y-%m')
+apps_df['display_month'] = apps_df['created_at'].dt.strftime('%B %Y')
 
+# Get unique months sorted descending (newest first)
+month_options = (
+    apps_df.sort_values("month_year_key", ascending=False)[['month_year_key', 'display_month']]
+    .drop_duplicates()
+)
 
+# Add "All Time" to the top of the list
+options_list = ["All Time"] + month_options['display_month'].tolist()
+
+# --- 2. SIDEBAR FILTER ---
+st.sidebar.header("📊 Filter Intelligence")
+selected_display = st.sidebar.selectbox("Select Time Range", options=options_list)
+
+# --- 3. APPLY FILTER LOGIC ---
+if selected_display == "All Time":
+    filtered_df = apps_df.copy()
+    title_suffix = "All Time"
+else:
+    # Find the corresponding YYYY-MM key for the selected display name
+    selected_month_key = month_options.loc[
+        month_options['display_month'] == selected_display, 'month_year_key'
+    ].iloc[0]
+    filtered_df = apps_df[apps_df['month_year_key'] == selected_month_key]
+    title_suffix = selected_display
+
+# --- 4. CALCULATE METRICS ---
+status_order = ['applied', 'interviewing', 'offered', 'rejected']
+counts = filtered_df['status'].value_counts().reindex(status_order, fill_value=0)
+
+# --- 5. DISPLAY UI ---
+st.subheader(f"📈 Performance: {title_suffix}")
+
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("Total Apps", len(filtered_df))
+col2.metric("Interviews", counts['interviewing'])
+col3.metric("Offers 🏆", counts['offered'])
+col4.metric("Rejections", counts['rejected'])
+
+st.divider()
+
+# --- 6. THE FUNNEL VISUALIZATION ---
+# Using the standard progression stages
+prog_stages = ['applied', 'interviewing', 'offered']
+prog_values = [counts[s] for s in prog_stages]
+
+fig = go.Figure(go.Funnel(
+    y = prog_stages,
+    x = prog_values,
+    textinfo = "value+percent initial",
+    marker = {"color": ["#636EFA", "#EF553B", "#00CC96"]},
+    connector = {"line": {"color": "gray", "width": 2}}
+))
+
+fig.update_layout(
+    title=f"Application Progression ({title_suffix})",
+    margin=dict(l=20, r=20, t=50, b=20),
+    height=400
+)
+
+st.plotly_chart(fig, use_container_width=True)
