@@ -1,0 +1,993 @@
+
+
+.subject-area-subjectAreaSwimpool,
+.subject-area-subjectAreaSwimlane,
+.subject-area-subjectAreaSwimpool.subject-area-box,
+.subject-area-subjectAreaSwimlane.subject-area-box {
+  min-width: 150px;
+  min-height: 140px;
+}
+
+.subject-area-header {
+  margin: 0px;
+}
+
+.subject-area-subjectAreaSwimlane.subject-area-header-extra {
+  min-height: 118px;
+}
+
+
+.subject-area-header-subjectAreaDefault {
+  margin: 0;
+  position: absolute;
+  border-radius: 3px;
+  outline: 2px solid transparent;
+  z-index: 10;
+  top: 0;
+  left: 0;
+  width: 100%;
+  pointer-events: all !important;
+  cursor: move;
+  min-width: 150px;
+  min-height: 24px !important;
+  max-height: 180px !important;
+  display: grid;
+}
+
+.subject-area-header-subjectAreaSwimpool {
+  margin: 0;
+  position: absolute;
+  border-radius: 3px;
+  outline: 2px solid transparent;
+  z-index: 10;
+  top: 0;
+  left: 0;
+  width: 100%;
+  pointer-events: all !important;
+  cursor: move;
+  min-width: 150px;
+  min-height: 40px !important;
+  max-height: 180px !important;
+  display: grid;
+}
+
+.subject-area-header-subjectAreaSwimpool .subject-area-header {
+  display: grid;
+  text-align: center;
+  width: auto;
+  font-size: 14px;
+  grid-template-rows: 1fr;
+  align-items: center;
+  padding: 0 10px;
+}
+
+.subject-area-header-subjectAreaSwimlane,
+.subject-area-header-subjectAreaSwimlane .subject-area-header  {
+  display: none;
+}
+
+.subject-area-subjectAreaDefault.subject-area-box > div {
+  padding-top: 34px;
+}
+
+.subject-area-subjectAreaSwimpool.subject-area-box > div {
+  padding-top: 46px;
+}
+
+.subject-area-subjectAreaSwimlane.subject-area-box > div {
+  padding-top: 20px;
+  padding-left: 50px;
+}
+
+.subject-area-header-extra {
+  writing-mode: tb-rl;
+  transform: rotate(-180deg);
+  position: absolute;
+  top: 1px;
+  bottom: 0px;
+  left: 3px;
+  text-align: center;
+  padding: 5px;
+  background: rgba(0, 0, 0, 0.2);
+  margin: 5px;
+  min-width: unset !important;
+  display: grid;
+  font-size: 14px;
+}
+
+.subject-area-header-extra .im-n-sa-header-selectmoveall {
+  position: absolute;
+  left: 40px;
+  top: calc(100% - 20px);
+  transform: rotate(180deg);
+  width: 20px;
+}
+
+.im-asset-wrapper {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.im-asset-component-wrapper-center {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.im-asset-component-wrapper-right {
+  max-width: 24px !important;
+  height: 24px !important;
+  position: relative;
+  padding: 8px 12px;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-auto-rows: 1fr;
+  align-items: center;
+}
+
+.im-asset-component-wrapper-below {
+  position: relative !important;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 60px;
+}
+
+.im-asset-component-wrapper-below .asset-component-root-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.im-asset-item .asset-component-root-svg {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transform: scale(0.5);
+}
+
+.im-n-other-asset {
+  min-width: unset;
+  min-height: unset;
+}
+
+.im-asset-cat {
+  display: grid !important;
+  overflow: hidden !important;
+  font-size: 13px;
+  position: relative;
+  border-radius: 4px;
+  background-repeat: no-repeat !important;
+}
+
+.im-asset-cat-text-below {
+  grid-template-rows: 1fr auto !important;
+  grid-template-columns: 1fr !important;
+  text-align: center;
+  align-items: end !important;
+  overflow: hidden !important;
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.im-asset-name {
+  text-align: center !important;
+  z-index: 1;
+  padding: 4px 8px;
+}
+
+.im-asset-cat-text-right .im-asset-name {
+  text-align: left !important;
+  padding: 8px 14px 8px 0px;
+}
+
+.im-asset-name {
+  text-align: center;
+  font-size: 12px;
+  display: block;
+  align-self: center;
+  white-space: pre-wrap;
+}
+
+.im-asset-item {
+  min-width: unset !important;
+  min-height: unset !important;
+}
+
+.im-asset-item-cat-personas .im-asset {
+}
+
+
+.im-asset-wrapper {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.im-asset-component-wrapper-center {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.im-asset-component-wrapper-right {
+  max-width: 24px !important;
+  height: 24px !important;
+  position: relative;
+  padding: 8px 12px;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-auto-rows: 1fr;
+  align-items: center;
+}
+
+.im-asset-component-wrapper-below {
+  position: relative !important;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 60px;
+}
+
+.im-asset-component-wrapper-below .asset-component-root-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.im-asset-item .asset-component-root-svg {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transform: scale(0.5);
+}
+
+/* shapes */
+
+.asset-cat-shapes {
+  text-align: center;
+  min-width: 140px !important;
+  min-height: 60px !important;
+  overflow: hidden !important;
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.asset-shapeRectangle svg * {
+  fill: #3f51b5;
+}
+
+.asset-shapeEllipse svg * {
+  fill: #ff5722;
+}
+
+.asset-shapeCircle svg * {
+  fill: #4caf50;
+}
+
+.asset-shapeDiamond svg * {
+  fill: #9c27b0;
+}
+
+.asset-shapeParallelogram svg * {
+  fill: #795548;
+}
+
+.asset-shapeHexagon svg * {
+  fill: #ff9800;
+}
+
+.asset-shapeOctagon svg * {
+  fill: #e91e63;
+}
+
+.asset-shapeStar svg * {
+  fill: #009688;
+}
+
+.asset-shapeCog svg * {
+  fill: #607d8b;
+}
+
+.asset-shapeCloud svg * {
+  fill: #607d8b;
+}
+
+.asset-shapeCircle,
+.asset-shapeCog,
+.asset-shapeStar {
+  min-width: 50px !important;
+  min-height: 50px !important;
+}
+
+.im-asset-cat-text-right.asset-shapeRectangle svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-shapeEllipse svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-shapeDiamond svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-shapeParallelogram svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-shapeHexagon svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-shapeOctagon svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-shapeCloud svg.asset-component-root-svg {
+  width: 24px !important;
+  height: 18px !important;
+}
+
+.im-asset-cat-text-right.asset-shapeCircle svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-shapeCog svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-shapeStar svg.asset-component-root-svg {
+  width: 20px !important;
+  height: 20px !important;
+}
+
+/* symbols */
+.asset-cat-symbols {
+  text-align: center;
+  min-width: 40px !important;
+  min-height: 40px !important;
+  overflow: hidden !important;
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.asset-symbolWarning svg * {
+  fill: #ff9800;
+}
+
+.asset-symbolError svg * {
+  fill: #e91e63;
+}
+
+.asset-symbolInfo svg * {
+  fill: #03a9f4;
+}
+
+.asset-symbolWhat svg * {
+  fill: #9c27b0;
+}
+
+.asset-symbolYes svg * {
+  fill: #4caf50;
+}
+
+.asset-symbolNo svg * {
+  fill: #e91e63;
+}
+
+.asset-symbolArrowRight svg *,
+.asset-symbolArrowLeft svg * {
+  fill: #607d8b;
+}
+
+.asset-symbolWarning
+  .asset-symbolError
+  .asset-symbolInfo
+  .asset-symbolWhat
+  .asset-symbolYes
+  .asset-symbolNo {
+  width: 50px !important;
+  height: 50px !important;
+}
+
+.asset-symbolArrowRight,
+.asset-symbolArrowLeft {
+  min-width: 140px !important;
+  min-height: 50px !important;
+}
+
+/* data sources */
+.asset-cat-dataSources {
+  text-align: center;
+  overflow: hidden !important;
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.asset-cat-dataSources svg * {
+  fill: #607d8b;
+}
+
+.asset-dataSourceMain svg *,
+.asset-dataSourceConnector svg *,
+.asset-dataSourceWarehouse svg *,
+.asset-dataSourceLake svg *,
+.asset-dataSourceDatabase svg *,
+.asset-dataSourceService svg *,
+.asset-dataSourceCloud svg *,
+.asset-dataSourceFile svg *, 
+.asset-dataSourceFolder svg *,
+.asset-dataSourceApplication svg *,
+.asset-dataSourceSpreadsheet svg *,
+.asset-dataSourceWeb svg *,
+.asset-dataSourceAi svg * {
+  fill: #607d8b;
+}
+
+/* personas */
+.asset-cat-personas {
+  text-align: center;
+  overflow: hidden !important;
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.asset-personasClient svg * {
+  fill: #3f51b5;
+}
+
+.asset-personasWorker svg * {
+  fill: #607d8b;
+}
+
+.asset-personasInvestor svg * {
+  fill: #9c27b0;
+}
+
+.asset-personasPartner svg * {
+  fill: #009688;
+}
+
+.asset-personasBot svg * {
+  fill: #ff9800;
+}
+
+.asset-personasGuest svg * {
+  fill: #666666;
+}
+
+/* data flow diagram */
+
+.asset-cat-dataFlow {
+  text-align: center;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 140px !important;
+  min-height: 50px !important;
+}
+
+.asset-dataFlowTerminator svg * {
+  fill: #3f51b5;
+}
+
+.asset-dataFlowProcess svg * {
+  fill: #9c27b0;
+}
+
+.asset-dataFlowDataStore svg * {
+  fill: #009688;
+}
+
+.im-asset-cat-text-right.asset-dataFlowTerminator svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-dataFlowProcess svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-dataFlowDataStore svg.asset-component-root-svg {
+  width: 24px !important;
+  height: 14px !important;
+}
+
+/* flowchart diagram */
+.asset-cat-flowchart {
+  overflow: hidden !important;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 140px;
+  min-height: 60px;
+}
+
+.asset-flowchartStart svg * {
+  fill: #4caf50;
+}
+
+.asset-flowchartDecision svg * {
+  fill: #9c27b0;
+}
+
+.asset-flowchartProcess svg * {
+  fill: #3f51b5;
+}
+
+.asset-flowchartEnd svg * {
+  fill: #e91e63;
+}
+
+.asset-flowchartAlternateProcess svg * {
+  fill: #3f51b5;
+}
+
+.asset-flowchartInputOutput svg * {
+  fill: #607d8b;
+}
+
+.asset-flowchartSubroutine svg * {
+  fill: #795548;
+}
+
+.asset-flowchartDocumentSingle svg * {
+  fill: #009688;
+}
+
+.asset-flowchartDocumentMultiple svg * {
+  fill: #009688;
+}
+
+.asset-flowchartInternalStorage svg * {
+  fill: #f44336;
+}
+
+.asset-flowchartDataStorage svg * {
+  fill: #ff9800;
+}
+
+.asset-flowchartDatabase svg * {
+  fill: #03a9f4;
+}
+
+.asset-flowchartConnector svg * {
+  fill: #4caf50;
+}
+
+.asset-flowchartPreparation svg * {
+  fill: #3f51b5;
+}
+
+.asset-flowchartManualOperation svg * {
+  fill: #673ab7;
+}
+
+.asset-flowchartJunctionSymbol svg * {
+  fill: #607d8b;
+}
+
+.asset-flowchartMergeSymbol svg * {
+  fill: #607d8b;
+}
+
+.asset-flowchartExtractSymbol svg * {
+  fill: #607d8b;
+}
+
+.asset-flowchartCollateSymbol svg * {
+  fill: #607d8b;
+}
+
+.asset-flowchartSortSymbol svg * {
+  fill: #607d8b;
+}
+
+.asset-flowchartOrSymbol svg * {
+  fill: #607d8b;
+}
+
+.asset-flowchartManualLoop svg * {
+  fill: #607d8b;
+}
+
+.asset-flowchartLoopLimit svg * {
+  fill: #607d8b;
+}
+
+.asset-flowchartDelay svg * {
+  fill: #607d8b;
+}
+
+.asset-flowchartDisplay svg * {
+  fill: #607d8b;
+}
+
+.asset-flowchartOffPage svg * {
+  fill: #607d8b;
+}
+
+.asset-flowchartConnector,
+.asset-flowchartDatabase,
+.asset-flowchartJunctionSymbol,
+.asset-flowchartOrSymbol,
+.asset-flowchartMergeSymbol,
+.asset-flowchartExtractSymbol,
+.asset-flowchartOffPage,
+.asset-flowchartCollateSymbol,
+.asset-flowchartSortSymbol {
+  min-width: 50px !important;
+  min-height: 50px !important;
+}
+
+.asset-flowchartStart,
+.asset-flowchartEnd {
+  min-width: 80px !important;
+  min-height: 40px !important;
+}
+
+.im-asset-cat-text-right.asset-flowchartStart svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-flowchartEnd svg.asset-component-root-svg {
+  width: 24px !important;
+  height: 10px !important;
+}
+
+.im-asset-cat-text-right.asset-flowchartDecision svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-flowchartProcess svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-flowchartAlternateProcess
+  svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-flowchartInputOutput
+  svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-flowchartDataStorage
+  svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-flowchartPreparation
+  svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-flowchartManualOperation
+  svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-flowchartManualLoop svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-flowchartLoopLimit svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-flowchartDelay svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-flowchartDisplay svg.asset-component-root-svg {
+  width: 24px !important;
+  height: 18px !important;
+}
+
+.im-asset-cat-text-right.asset-flowchartInternalStorage
+  svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-flowchartSubroutine svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-flowchartConnector svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-flowchartJunctionSymbol
+  svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-flowchartOrSymbol svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-flowchartMergeSymbol
+  svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-flowchartCollateSymbol
+  svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-flowchartSortSymbol svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-flowchartExtractSymbol
+  svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-flowchartMergeSymbol
+  svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-flowchartDocumentSingle
+  svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-flowchartDocumentMultiple
+  svg.asset-component-root-svg {
+  width: 20px !important;
+  height: 20px !important;
+}
+
+/* use case diagram */
+.asset-cat-useCase {
+  text-align: center;
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.asset-useCaseActor svg * {
+  fill: #3f51b5;
+}
+
+.asset-useCaseActress svg * {
+  fill: #9c27b0;
+}
+
+.asset-useCaseBot svg * {
+  fill: #009688;
+}
+
+.asset-useCaseContent svg * {
+  fill: #ff5722;
+}
+
+.im-asset-component-wrapper-below.im-asset-min-size-useCaseActor,
+.im-asset-component-wrapper-below.im-asset-min-size-useCaseActress,
+.im-asset-component-wrapper-below.im-asset-min-size-useCaseBot {
+  min-height: 120px !important;
+}
+
+.im-asset-component-wrapper-below.im-asset-min-size-useCaseContent {
+  min-height: 60px !important;
+}
+
+.asset-useCaseContent {
+  min-width: 140px !important;
+  min-height: 40px !important;
+}
+
+.im-asset-item-cat-useCase .asset-item {
+  min-height: unset !important;
+  min-width: unset !important;
+}
+
+.asset-item.asset-useCaseActor,
+.asset-item.asset-useCaseActress,
+.asset-item.asset-useCaseBot {
+  transform: scale(0.8);
+}
+
+.im-asset-cat-text-right.asset-useCaseContent svg.asset-component-root-svg {
+  width: 24px !important;
+  height: 14px !important;
+}
+
+.im-asset-cat-text-left.asset-useCaseActor,
+.im-asset-cat-text-left.asset-useCaseActress,
+.im-asset-cat-text-left.asset-useCaseBot,
+.im-asset-cat-text-center.asset-useCaseActor,
+.im-asset-cat-text-center.asset-useCaseActress,
+.im-asset-cat-text-center.asset-useCaseBot {
+  min-height: 140px;
+  min-width: 55px !important;
+}
+
+/* conditions */
+
+.asset-cat-conditions {
+  text-align: center;
+  overflow: hidden !important;
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.asset-conditionOneOf svg *,
+.asset-conditionAnyOf svg *,
+.asset-conditionAllOf svg *,
+.asset-conditionNot svg * {
+  fill: #607d8b;
+}
+
+.asset-conditionIf svg *,
+.asset-conditionThen svg *,
+.asset-conditionElse svg *,
+.asset-conditionElseIf svg * {
+  fill: #9c27b0;
+}
+
+.im-asset-cat-text-right.asset-conditionOneOf svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-conditionAnyOf svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-conditionAllOf svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-conditionNot svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-conditionIf svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-conditionThen svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-conditionElse svg.asset-component-root-svg,
+.im-asset-cat-text-right.asset-conditionElseIf svg.asset-component-root-svg {
+  width: 20px !important;
+  height: 20px !important;
+}
+
+/* text and notes */
+.asset-cat-textsAndNotes {
+  text-align: center;
+  align-items: end !important;
+  overflow: hidden !important;
+  min-width: 50px !important;
+  min-height: 50px !important;
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.asset-text svg *,
+.asset-note svg * {
+  fill: #607d8b !important;
+}
+
+/* subject areas and groups */
+.asset-cat-subjectAreas {
+  text-align: center;
+  align-items: end !important;
+  overflow: hidden !important;
+  min-width: 50px !important;
+  min-height: 50px !important;
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.asset-subjectAreaDefault svg *,
+.asset-subjectAreaSwimlane svg *,
+.asset-subjectAreaSwimpool svg * {
+  fill: #607d8b !important;
+}
+
+/* lines */
+.asset-cat-lineGraphics {
+  text-align: center;
+  align-items: end !important;
+  overflow: hidden !important;
+  min-width: 50px !important;
+  min-height: 50px !important;
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.asset-lineSimple svg *,
+.asset-dataFlowLine svg *,
+.asset-flowchartLine svg *,
+.asset-useCaseLine svg *,
+.asset-lineArrow svg *,
+.asset-flowchartArrow svg *,
+.asset-flowchartYes svg *,
+.asset-flowchartNo svg *,
+.asset-dataFlowArrow svg *,
+.asset-lineConnection svg * {
+  fill: #607d8b !important;
+}
+
+/* data analysis */
+
+.asset-cat-data-analysis {
+  text-align: center;
+  min-width: 140px !important;
+  min-height: 40px !important;
+  overflow: hidden !important;
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.asset-dataAnalysisGroup svg *,
+.asset-dataAnalysisAggregate svg *,
+.asset-dataAnalysisSummarize svg *,
+.asset-dataAnalysisCorrelate svg *,
+.asset-dataAnalysisDetectAnomaly svg *,
+.asset-dataAnalysisCompare svg *,
+.asset-dataAnalysisForecast svg *,
+.asset-dataAnalysisOptimize svg *,
+.asset-dataAnalysisVisualize svg * {
+  fill: #03a9f4;
+}
+
+/* data collection */
+.asset-cat-data-collection {
+  text-align: center;
+  min-width: 140px !important;
+  min-height: 40px !important;
+  overflow: hidden !important;
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.asset-dataCollectionCollect svg *,
+.asset-dataCollectionQuery svg *,
+.asset-dataCollectionRequest svg *,
+.asset-dataCollectionScan svg *,
+.asset-dataCollectionWebScrape svg *,
+.asset-dataCollectionManualInput svg * {
+  fill: #607d8b;
+}
+
+/* data engineering */
+.asset-cat-data-engineering {
+  text-align: center;
+  min-width: 140px !important;
+  min-height: 40px !important;
+  overflow: hidden !important;
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.asset-dataEngineeringExtract svg *,
+.asset-dataEngineeringTransform svg *,
+.asset-dataEngineeringLoad svg *,
+.asset-dataEngineeringReplicate svg *,
+.asset-dataEngineeringStream svg *,
+.asset-dataEngineeringBatchProcess svg *,
+.asset-dataEngineeringVersion svg *,
+.asset-dataEngineeringMonitor svg *,
+.asset-dataEngineeringBackup svg *,
+.asset-dataEngineeringLog svg *,
+.asset-dataEngineeringBranch svg * {
+  fill: #ff5722;
+}
+
+/* data governance */
+.asset-cat-data-governance {
+  text-align: center;
+  min-width: 140px !important;
+  min-height: 40px !important;
+  overflow: hidden !important;
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.asset-dataGovernanceAccessControl svg *,
+.asset-dataGovernanceEncrypt svg *,
+.asset-dataGovernanceAudit svg *,
+.asset-dataGovernanceArchive svg *,
+.asset-dataGovernanceRecover svg *,
+.asset-dataGovernanceCompliance svg *,
+.asset-dataGovernanceRetention svg * {
+  fill: #b85ac8;
+}
+
+/* data manipulation */
+.asset-cat-data-manipulation {
+  text-align: center;
+  min-width: 140px !important;
+  min-height: 40px !important;
+  overflow: hidden !important;
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.asset-dataManipulationCreate svg *,
+.asset-dataManipulationRead svg *,
+.asset-dataManipulationUpdate svg *,
+.asset-dataManipulationDelete svg *,
+.asset-dataManipulationInsert svg *,
+.asset-dataManipulationSelect svg *,
+.asset-dataManipulationSample svg *,
+.asset-dataManipulationIndex svg *,
+.asset-dataManipulationSort svg *,
+.asset-dataManipulationFilter svg * {
+  fill: #4caf50;
+}
+
+/* data preparation */
+.asset-cat-data-preparation {
+  text-align: center;
+  min-width: 140px !important;
+  min-height: 40px !important;
+  overflow: hidden !important;
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.asset-dataPreparationClean svg *,
+.asset-dataPreparationValidate svg *,
+.asset-dataPreparationParse svg *,
+.asset-dataPreparationFormat svg *,
+.asset-dataPreparationStandardize svg *,
+.asset-dataPreparationCorrect svg *,
+.asset-dataPreparationFillMissing svg *,
+.asset-dataPreparationImpute svg *,
+.asset-dataPreparationHandleOutliers svg *,
+.asset-dataPreparationEncode svg *,
+.asset-dataPreparationDecode svg *,
+.asset-dataPreparationMap svg *,
+.asset-dataPreparationMerge svg *,
+.asset-dataPreparationJoin svg *,
+.asset-dataPreparationPivot svg *,
+.asset-dataPreparationUnpivot svg *,
+.asset-dataPreparationAnonymize svg *,
+.asset-dataPreparationMask svg *,
+.asset-dataPreparationConvert svg *,
+.asset-dataPreparationStructure svg * {
+  fill: #ffc107;
+}
+
+.im-asset-cat-text-right {
+  grid-template-rows: 1fr !important;
+  grid-template-columns: auto 1fr !important;
+  text-align: left !important;
+  align-items: center !important;
+  min-width: 80px !important;
+  min-height: 40px !important;
+  width: 100%;
+  height: 100%;
+}
+/* specific */
+.im-asset-cat-text-right {
+  background-color: #444;
+  outline: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 4px 4px 8px -8px black;
+}

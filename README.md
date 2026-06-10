@@ -1,131 +1,93 @@
 # Career Manager 🎯
 
-## El Problema
+A technical system for managing executive job applications, focusing on data persistence, multi-language support, and automated document generation.
 
-Gestionar aplicaciones de empleo ejecutivas es un desafío estratégico. Cada aplicación requiere:
-- **Personalización**: Adaptar tu narrativa profesional al perfil específico
-- **Multi-idioma**: Competir en mercados globales (inglés, español, francés)
-- **Trazabilidad**: No perder de vista qué enviaste, a quién, y en qué estado está
-- **Consistencia**: Mantener la calidad sin repetir trabajo manual
+## Technical Overview
 
-El resultado: Pierdes tiempo en tareas administrativas en lugar de enfocarte en lo que realmente importa: **resaltar los aspectos de tu carrera que hacen match con cada oportunidad**.
+Career Manager is built to centralize professional narratives and application tracking. It leverages a relational database to maintain consistency across different job applications and languages (English, Spanish, French).
 
-## La Solución
-
-**Career Manager** es un sistema que centraliza la gestión de tus aplicaciones laborales, permitiéndote:
-
-✅ **Crear CVs personalizados** en segundos para cada aplicación  
-✅ **Trabajar en 3 idiomas** (English, Spanish, French) sin esfuerzo adicional  
-✅ **Mantener trazabilidad** de cada aplicación y su estado  
-✅ **Enfocarte en lo estratégico**: qué elementos de tu experiencia destacar para cada rol  
-
-### ¿Cómo funciona?
-
-1. **Inicializas** el sistema (primera vez): se crea automáticamente el schema en PostgreSQL
-2. **Poblas datos** via una **interfaz web Streamlit** que te guía paso a paso:
-   - Defines tipos de empresa (Consultoría, Servicios Financieros, Tech, etc.)
-   - Registras empresas objetivo con su clasificación
-   - Capturas aplicaciones con toda tu información profesional personalizada para cada rol
-3. **Generas CVs** automáticamente en el idioma que necesites (English, Spanish, French)
-4. **Mantienes trazabilidad** del estado de cada aplicación (aplicado, entrevista, oferta, rechazado)
-
-**Sin escribir una sola línea de SQL**. La interfaz web elimina la fricción de generar inserts manuales, permitiéndote enfocarte en la narrativa estratégica de tu carrera.
-
-El sistema usa **templates de Word con placeholders inteligentes** (e.g., `{job}`, `{skills}`, `{experience1}`) que se alimentan automáticamente de PostgreSQL.
+### Key Technical Features
+- **Relational Data Persistence**: Structured storage for company types, target organizations, and granular application details.
+- **Dynamic Document Generation**: Utilizes Word templates with smart placeholders (e.g., `{job}`, `{skills}`) powered by PostgreSQL data.
+- **Multi-language Schema**: Native support for managing content across three languages within the same application context.
+- **Streamlit Interface**: A web-based CRUD interface for efficient data entry and management, reducing manual SQL operations.
 
 ---
 
-## Inicio Rápido
+## Getting Started
 
-### Prerequisitos
-- Python 3.8+
-- PostgreSQL
-- Cuenta con acceso a base de datos PostgreSQL
+### Prerequisites
+- **Python**: 3.8+
+- **Database**: PostgreSQL 17 (Required for compatibility with current DDL and triggers)
+- **Environment Management**: `pip` or `uv` recommended
 
-### Instalación
+### Installation
 
 ```bash
-# 1. Clonar el repositorio
+# Clone the repository
 git clone https://github.com/armjorge/career_manager.git
 cd career_manager
 
-# 2. Instalar dependencias
+# Install dependencies
 pip install -r requirements.txt
 
-# 3. Configurar variables de entorno
+# Environment Setup
 cp .env.example .env
-# Edita .env con tu DB_URL y MAIN_PATH
 ```
 
-### Configuración
+### Configuration
 
-Edita el archivo `.env`:
-```bash
-DB_URL=postgresql://usuario:password@host:5432/nombre_db
-MAIN_PATH=/ruta/donde/quieres/guardar/los/archivos
-```
-
-### Uso
+The application requires a `DB_URL` environment variable. Configure it in your `.env` file:
 
 ```bash
-python carrier_management.py
+DB_URL=postgresql://user:password@server:port/database
 ```
-
-El menú interactivo te permite:
-1. **Inicializar la base de datos** (primera vez) - Crea el schema PostgreSQL automáticamente
-2. **Poblar datos** - Abre una interfaz web Streamlit donde capturas:
-   - Company Types (tipos de empresa)
-   - Companies (empresas objetivo)
-   - Applications (aplicaciones con toda tu info profesional)
-3. **Generar CVs personalizados** en Word con un click
 
 ---
 
-## Arquitectura (Técnico)
+## System Architecture
 
+### Project Structure
 ```
 career_manager/
-├── carrier_management.py      # Orquestador principal
+├── carrier_management.py      # Main orchestrator / Entry point
 ├── Library/
-│   ├── SQL_initialize.py      # Setup de schema PostgreSQL
-│   ├── SQL_management.py      # Gestión de conexiones
-│   ├── CV_generation.py       # Motor de generación de CVs
-│   ├── concept_filing.py      # UI Streamlit para captura
-│   └── chrome_helper.py       # Utilidades web
-├── SQL/
-│   └── initializing.sql       # Schema con 3 tablas relacionales
-└── config/
-    └── config.yml             # Configuración de estructura DB
+│   ├── SQL_initialize.py      # Database schema setup logic
+│   ├── SQL_management.py      # Connection pooling and query management
+│   ├── CV_generation.py       # Document generation engine (Word)
+│   ├── concept_filing.py      # Streamlit UI implementation
+│   └── db_utils.py            # Low-level database utilities
+├── SQL/                       # DDL and Database Scripts
+│   ├── ddl_postgres17.sql     # Core schema definition
+│   ├── ddl_postgres17_metadata.sql # Metadata and auxiliary objects
+│   └── initializing.sql       # Initial setup and seeding
+├── config/
+│   └── config.yml             # System and DB configuration
+└── Data Model/                # Interactive documentation
+    └── index.html             # Luna Modeler HTML Report
 ```
 
-### Base de Datos
-Estructura relacional en PostgreSQL:
-- `company_types`: Tipos de empresa (consultoría, startup, corporativo, finanzas, tech)
-- `companies`: Empresas objetivo vinculadas a su tipo
-- `applications`: Aplicaciones con información completa del CV + tracking de estado
+### Database & Schema
+The system relies on a PostgreSQL 17 schema. The scripts located in the `/SQL` directory are responsible for recreating the entire environment, including tables, sequences, and triggers.
 
-**Ventaja clave**: Se pobla mediante una **interfaz web Streamlit** intuitiva que muestra las 3 tablas con formularios guiados. Esto elimina completamente la necesidad de escribir INSERTs SQL a mano, acelerando la captura de datos y reduciendo errores.
+- **`dim_company`**: Dimension table for target organizations.
+- **`fact_application`**: Central transaction table for job applications.
+- **`dim_tracker`**: Application status and lifecycle tracking.
 
-### Generación de CVs
-Los templates de Word usan placeholders tipo `{job}`, `{skills}`, `{experience1}` que se reemplazan dinámicamente con datos de PostgreSQL. Cada aplicación puede tener contenido diferente según el match con el rol objetivo.
+### Data Model Visualization
+The following diagram represents the core entity-relationship structure:
 
----
+![Data Model](images/data_model.png)
 
-## Roadmap
-
-- [ ] Exportación a PDF automática
-- [ ] Dashboard de métricas (tasa de respuesta por tipo de empresa)
-- [ ] Integración con LinkedIn para importar datos
-- [ ] Sistema de recordatorios para hacer follow-up
-- [ ] Carga de templates
+For a detailed technical exploration, see the [Interactive Data Model Report](Data%20Model/index.html).
 
 ---
 
-## Licencia
+## Development Workflow
 
-MIT License - Úsalo libremente para impulsar tu carrera profesional.
+1.  **Initialization**: Run the orchestrator to initialize the PostgreSQL schema.
+2.  **Data Ingestion**: Use the Streamlit interface to populate dimensions and facts.
+3.  **Generation**: Trigger the Word engine to merge database records with professional templates.
 
----
-
-**¿Dudas o sugerencias?** Abre un issue o contacta a [@armjorge](https://github.com/armjorge) 
-
+## License
+MIT License

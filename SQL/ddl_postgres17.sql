@@ -1,7 +1,7 @@
 -- ==========================================
 -- Initialize Schema Environment
 -- ==========================================
-DROP SCHEMA IF EXISTS consulting_tracker CASCADE;
+-- DROP SCHEMA IF EXISTS consulting_tracker CASCADE;
 CREATE SCHEMA consulting_tracker AUTHORIZATION neondb_owner;
 
 -- Force the session to use our schema for un-prefixed commands
@@ -17,13 +17,12 @@ CREATE SEQUENCE consulting_tracker.seq_dim_job_category INCREMENT BY 1 MINVALUE 
 CREATE SEQUENCE consulting_tracker.seq_dim_language INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START 1 CACHE 1 NO CYCLE;
 CREATE SEQUENCE consulting_tracker.seq_fact_application INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START 1 CACHE 1 NO CYCLE;
 
-CREATE SEQUENCE consulting_tracker.seq_fact_job
+CREATE SEQUENCE consulting_tracker.seq_fact_pdf
+    START WITH 1
     INCREMENT BY 1
-    MINVALUE 1
-    MAXVALUE 9223372036854775807
-    START 1
-    CACHE 1
-    NO CYCLE;
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
 -- ==========================================
 -- 2. TRIGGER FUNCTIONS (Compiled Early)
 -- ==========================================
@@ -117,27 +116,20 @@ CREATE TABLE consulting_tracker.fact_application (
 	CONSTRAINT fact_application_dim_job_category_fk FOREIGN KEY (job_cat_id) REFERENCES consulting_tracker.dim_job_category(job_cat_id) ON DELETE SET NULL ON UPDATE CASCADE,
 	CONSTRAINT fact_application_lang_id_fkey FOREIGN KEY (lang_id) REFERENCES consulting_tracker.dim_language(lang_id)
 );
-CREATE TABLE consulting_tracker.fact_job (
-    job_id int4 DEFAULT nextval('consulting_tracker.seq_fact_job'::regclass) NOT NULL,
-    application_id int4 NOT NULL,
+CREATE TABLE consulting_tracker.fact_pdf_generator (
+    pdf_id integer DEFAULT nextval('consulting_tracker.seq_fact_pdf'::regclass) NOT NULL,
+    application_id integer NOT NULL,
     active_status boolean NOT NULL,
-    file_hash char(64) NOT NULL,
-    file_name varchar(255) NULL,
-    output_file varchar(255) NOT NULL DEFAULT 'output_file.docx',
-    job_status boolean NOT NULL DEFAULT true,
-    created_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    
+    file_hash character(64) NOT NULL,
+    file_name character varying(255),
+    output_file character varying(255) DEFAULT 'output_file.docx'::character varying NOT NULL,
+    job_status boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT fact_job_pkey PRIMARY KEY (application_id, file_hash, job_status, created_at),
     CONSTRAINT fact_job_application_id_fkey FOREIGN KEY (application_id) 
         REFERENCES consulting_tracker.fact_application(application_id) ON DELETE CASCADE
 );
 
--- ==========================================
--- 4. TRIGGERS (Placed after table exists)
--- ==========================================
-CREATE TRIGGER trg_after_application_insert 
-    AFTER INSERT ON consulting_tracker.fact_application 
-    FOR EACH ROW EXECUTE FUNCTION consulting_tracker.sync_fact_to_tracker();
 
 CREATE TABLE consulting_tracker.dim_resume_details (
 	application_id int4 NOT NULL,
@@ -172,3 +164,12 @@ CREATE TABLE consulting_tracker.dim_tracker (
 	CONSTRAINT dim_tracker_pkey PRIMARY KEY (application_id),
 	CONSTRAINT dim_tracker_application_id_fkey FOREIGN KEY (application_id) REFERENCES consulting_tracker.fact_application(application_id)
 );
+
+
+-- ==========================================
+-- 4. TRIGGERS (Placed after table exists)
+-- ==========================================
+CREATE TRIGGER trg_after_application_insert 
+    AFTER INSERT ON consulting_tracker.fact_application 
+    FOR EACH ROW EXECUTE FUNCTION consulting_tracker.sync_fact_to_tracker();
+
