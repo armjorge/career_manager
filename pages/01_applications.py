@@ -11,7 +11,7 @@ from Library.db_utils import DB_UTILS
 from Library.CV_generation import CV_GENERATION
 
 # 2) Page Config
-st.set_page_config(page_title="📝 Applications", layout="wide")
+st.set_page_config(page_title="📝 Applications & Tracking", layout="wide")
 
 # 3) Initialize DB via Session State
 if 'db' not in st.session_state:
@@ -19,7 +19,6 @@ if 'db' not in st.session_state:
 
 db = st.session_state.db
 schema = db.schema
-conn = db.get_db_connection()
 engine = db.get_engine()
 working_folder = db.working_folder
 
@@ -34,178 +33,226 @@ def ui_log(msg: str, level: str = "info"):
     elif level == "error": log_box.error(msg)
     else: log_box.info(msg)        
 
-st.title("📝 Applications")
+st.title("📝 Applications & Tracking Management")
 
 PK = "application_id"
-cols_show = ["job", "company_type", "lang", "status", "company_name", "created_at"]
 
-# === Load FULL table ===
-try:
-    df_full = pd.read_sql(f'SELECT * FROM "{schema}".applications ORDER BY created_at DESC;', engine)
-except Exception:
-    df_full = pd.DataFrame()
-
-# === Display & Export ===
-if not df_full.empty:
-    show_cols = [c for c in cols_show if c in df_full.columns]
-    st.dataframe(df_full[show_cols], use_container_width=True)
-
-    buffer = io.BytesIO()
-    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
-        df_full[show_cols].to_excel(writer, index=False, sheet_name="applications")
-
-    st.download_button(
-        label="⬇️ Exportar a Excel (vista)",
-        data=buffer.getvalue(),
-        file_name=f"applications_{datetime.now():%Y%m%d_%H%M}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
-else:
-    st.info("No hay registros para mostrar/exportar.")
-
-st.markdown("### ➕ Agregar o Editar Application")
-
-# === Selector Logic ===
-selected_pk = None
-original = {}
-
-if not df_full.empty and PK in df_full.columns:
-    options = df_full[[PK, "job", "company_name", "created_at"]].copy()
-    options["label"] = (
-        options["job"].fillna("").astype(str)
-        + " | " + options["company_name"].fillna("").astype(str)
-        + " | " + options["created_at"].astype(str)
-    )
-    label_list = options["label"].tolist()
-    pk_by_label = dict(zip(options["label"], options[PK]))
-    selected_label = st.selectbox("Selecciona una aplicación existente (opcional para editar):", [""] + label_list)
-
-    if selected_label:
-        selected_pk = pk_by_label[selected_label]
-        original_row = df_full[df_full[PK] == selected_pk].iloc[0]
-        original = original_row.to_dict()
-
-def _norm(v):
-    return "" if v is None else str(v).strip()
-
-# === Fetch Options ===
-try:
-    lang_opts = pd.read_sql(f'SELECT lang FROM "{schema}".languages ORDER BY lang;', engine)["lang"].dropna().astype(str).tolist()
-except: lang_opts = []
-try:
-    company_opts = pd.read_sql(f'SELECT company_name FROM "{schema}".companies ORDER BY created_at DESC;', engine)["company_name"].dropna().astype(str).tolist()
-except: company_opts = []
-
-status_opts = ["applied", "interviewing", "offered", "rejected"]
-
-# === Form ===
-with st.form("applications_form", clear_on_submit=False):
-    job_val = st.text_input("Job position", value=original.get("job", "") or "")
-    
-    default_lang = (original.get("lang") or "")
-    if default_lang and default_lang not in lang_opts: lang_opts = [default_lang] + lang_opts
-    lang_val = st.selectbox("Language", options=lang_opts, index=lang_opts.index(default_lang) if default_lang in lang_opts else 0)
-
-    default_company = (original.get("company_name") or "")
-    if default_company and default_company not in company_opts: company_opts = [default_company] + company_opts
-    company_name_val = st.selectbox("Company name", options=company_opts, index=company_opts.index(default_company) if default_company in company_opts else 0)
-
+def get_or_create_id(table, column, value, id_column):
+    if not value or not value.strip(): return None
+    # Check exists
+    query_check = f'SELECT {id_column} FROM "{schema}"."{table}" WHERE LOWER("{column}") = LOWER(%s);'
+    conn = db.get_db_connection()
     try:
-        company_type_opts = pd.read_sql(f'SELECT company_type FROM "{schema}".companies WHERE company_name = %(cn)s;', 
-                                        engine, params={"cn": company_name_val})["company_type"].dropna().astype(str).tolist()
-    except: company_type_opts = []
+        with conn.cursor() as cur:
+            cur.execute(query_check, (value.strip(),))
+            row = cur.fetchone()
+            if row:
+                return row[0]
+            # Insert
+            query_ins = f'INSERT INTO "{schema}"."{table}" ("{column}") VALUES (%s) RETURNING {id_column};'
+            cur.execute(query_ins, (value.strip(),))
+            new_id = cur.fetchone()[0]
+            conn.commit()
+            return new_id
+    except Exception as e:
+        conn.rollback()
+        st.error(f"Error in get_or_create_id for {table}: {e}")
+        return None
+    finally:
+        conn.close()
 
+# --- FETCH SHARED DATA ---
+df_companies = pd.read_sql(f'SELECT company_id, company_name FROM "{schema}".dim_company ORDER BY company_name;', engine)
+company_dict = dict(zip(df_companies['company_name'], df_companies['company_id']))
+
+df_langs = pd.read_sql(f'SELECT lang_id, language FROM "{schema}".dim_language ORDER BY language;', engine)
+lang_dict = dict(zip(df_langs['language'], df_langs['lang_id']))
+
+df_cats = pd.read_sql(f'SELECT job_cat_id, category_name FROM "{schema}".dim_job_category ORDER BY category_name;', engine)
+cat_dict = dict(zip(df_cats['category_name'], df_cats['job_cat_id']))
+
+status_opts = ["open", "closed"]
+
+# Create Tabs for Milestones
+tab1, tab2 = st.tabs(["📋 Milestone 1: Applications & Resume", "📍 Milestone 2: Tracking Details"])
+
+# ==============================================================================
+# TAB 1: APPLICATIONS & RESUME
+# ==============================================================================
+with tab1:
+    st.header("📋 Applications & Resume Management")
     
-    default_ct = (original.get("company_type") or "")
-    if default_ct and default_ct not in company_type_opts: company_type_opts = [default_ct] + company_type_opts
-    company_type_val = st.selectbox("Company type", options=company_type_opts if company_type_opts else [""], index=company_type_opts.index(default_ct) if default_ct in company_type_opts else 0)
-
-    status_val = st.selectbox("Status", options=status_opts, index=status_opts.index(original.get("status")) if original.get("status") in status_opts else 0)
-
-    experience1_val = st.text_area("Experience 1", value=original.get("experience1", "") or "", height=120)
-    experience2_val = st.text_area("Experience 2", value=original.get("experience2", "") or "", height=120)
-    experience3_val = st.text_area("Experience 3", value=original.get("experience3", "") or "", height=120)    
-    education1_val = st.text_area("Education 1", value=original.get("education1", "") or "", height=90)
-    education2_val = st.text_area("Education 2", value=original.get("education2", "") or "", height=90)
-    education3_val = st.text_area("Education 3", value=original.get("education3", "") or "", height=90)
-    skills_val = st.text_area("Skills", value=original.get("skills", "") or "", height=120)
-
+    # Fetch Data for Tab 1
+    query_apps = f"""
+        SELECT 
+            fa.application_id, fa.job_name, c.company_name, l.language, fa.status, 
+            jc.category_name, fa.created_at, fa.company_id, fa.lang_id, fa.job_cat_id,
+            rd.ex1, rd.ex2, rd.ex3, rd.ed1, rd.ed2, rd.ed3, rd.skills
+        FROM "{schema}".fact_application fa
+        LEFT JOIN "{schema}".dim_company c ON fa.company_id = c.company_id
+        LEFT JOIN "{schema}".dim_language l ON fa.lang_id = l.lang_id
+        LEFT JOIN "{schema}".dim_job_category jc ON fa.job_cat_id = jc.job_cat_id
+        LEFT JOIN "{schema}".dim_resume_details rd ON fa.application_id = rd.application_id
+        ORDER BY fa.created_at DESC;
+    """
     try:
-        cv_file_opts = pd.read_sql(f'SELECT cv_file FROM "{schema}".cv_files WHERE lang = %(lang)s;', engine, params={"lang": lang_val})["cv_file"].dropna().astype(str).tolist()
-    except: cv_file_opts = []
+        df_apps = pd.read_sql(query_apps, engine)
+    except Exception as e:
+        st.error(f"Error loading applications: {e}")
+        df_apps = pd.DataFrame()
 
-    cv_file_opts = [""] + cv_file_opts
-    default_cv_file = (original.get("cv_files") or "")
-    if default_cv_file and default_cv_file not in cv_file_opts: cv_file_opts = [default_cv_file] + cv_file_opts
-    cv_files_val = st.selectbox("CV file (optional)", options=cv_file_opts, index=cv_file_opts.index(default_cv_file) if default_cv_file in cv_file_opts else 0)
-
-    # UPDATED: Ensure all UI fields are in this dictionary
-    new_values = {
-        "job": job_val, "lang": lang_val, "company_name": company_name_val,
-        "company_type": company_type_val, "status": status_val,
-        "experience1": experience1_val, "experience2": experience2_val, "experience3": experience3_val,
-        "education1": education1_val, "education2": education2_val, "education3": education3_val,
-        "skills": skills_val, "cv_files": cv_files_val
-    }
-
-    col_a, col_b = st.columns(2)
-    submit_update = col_a.form_submit_button("💾 Guardar cambios")
-    submit_insert = col_b.form_submit_button("➕ Crear nueva aplicación")
-
-# === Database Actions ===
-if submit_update:
-    if not selected_pk:
-        st.error("Por favor, selecciona una aplicación de la lista para editar.")
+    if not df_apps.empty:
+        cols_show = ["job_name", "company_name", "language", "status", "category_name", "created_at"]
+        st.dataframe(df_apps[cols_show], use_container_width=True, height=300)
     else:
-        # Compare normalized values to detect actual changes
-        changed = {k: v for k, v in new_values.items() if _norm(v) != _norm(original.get(k))}
+        st.info("No applications found.")
+
+    st.subheader("➕ Add or Edit Application")
+    
+    selected_pk_app = None
+    original_app = {}
+    if not df_apps.empty:
+        options = df_apps.copy()
+        options["label"] = options["job_name"].fillna("") + " | " + options["company_name"].fillna("") + " | " + options["created_at"].astype(str)
+        label_list = options["label"].tolist()
+        pk_by_label = dict(zip(options["label"], options[PK]))
+        selected_label = st.selectbox("Select existing application to edit (optional):", [""] + label_list, key="sel_app")
+        if selected_label:
+            selected_pk_app = pk_by_label[selected_label]
+            original_app = df_apps[df_apps[PK] == selected_pk_app].iloc[0].to_dict()
+
+    with st.form("form_milestone_1", clear_on_submit=False):
+        col1, col2 = st.columns(2)
+        with col1:
+            curr_comp = original_app.get("company_name", "")
+            comp_opts = sorted(list(company_dict.keys()))
+            comp_val = st.selectbox("Company (Mandatory)", options=comp_opts, index=comp_opts.index(curr_comp) if curr_comp in comp_opts else 0)
+            job_val = st.text_input("Job Position (Mandatory)", value=original_app.get("job_name", "") or "")
+            curr_stat = original_app.get("status", "open")
+            stat_val = st.selectbox("Status", options=status_opts, index=status_opts.index(curr_stat) if curr_stat in status_opts else 0)
         
-        if not changed:
-            st.info("No se detectaron cambios.")
+        with col2:
+            curr_l = original_app.get("language", "")
+            l_opts = ["➕ Add New..."] + sorted(list(lang_dict.keys()))
+            l_val = st.selectbox("Language", options=l_opts, index=l_opts.index(curr_l) if curr_l in l_opts else 0)
+            new_l_input = st.text_input("New Language (if needed)", value="")
+            curr_c = original_app.get("category_name", "")
+            c_opts = ["➕ Add New..."] + sorted(list(cat_dict.keys()))
+            c_val = st.selectbox("Job Category", options=c_opts, index=c_opts.index(curr_c) if curr_c in c_opts else 0)
+            new_c_input = st.text_input("New Category (if needed)", value="")
+
+        st.write("---")
+        st.subheader("📄 Resume Details")
+        col_r1, col_r2 = st.columns(2)
+        with col_r1:
+            ex1 = st.text_area("Experience 1", value=original_app.get("ex1", "") or "", height=80)
+            ex2 = st.text_area("Experience 2", value=original_app.get("ex2", "") or "", height=80)
+            ex3 = st.text_area("Experience 3", value=original_app.get("ex3", "") or "", height=80)
+        with col_r2:
+            ed1 = st.text_area("Education 1", value=original_app.get("ed1", "") or "", height=80)
+            ed2 = st.text_area("Education 2", value=original_app.get("ed2", "") or "", height=80)
+            ed3 = st.text_area("Education 3", value=original_app.get("ed3", "") or "", height=80)
+            skills = st.text_area("Skills", value=original_app.get("skills", "") or "", height=80)
+
+        c1, c2 = st.columns(2)
+        btn_update = c1.form_submit_button("💾 Save Changes (Milestone 1)")
+        btn_insert = c2.form_submit_button("➕ Create New Application")
+
+    # DB Logic for Tab 1
+    if btn_update or btn_insert:
+        cid = company_dict.get(comp_val)
+        lid = get_or_create_id("dim_language", "language", new_l_input, "lang_id") if l_val == "➕ Add New..." else lang_dict.get(l_val)
+        jcid = get_or_create_id("dim_job_category", "category_name", new_c_input, "job_cat_id") if c_val == "➕ Add New..." else cat_dict.get(c_val)
+        
+        if not cid or not job_val:
+            st.error("Company and Job Name are required.")
         else:
+            conn = db.get_db_connection()
             try:
-                conn = db.get_db_connection()  # fresh connection for write
-                set_clause = ", ".join([f'"{k}" = %({k})s' for k in changed.keys()])
-                params = {**changed, "target_pk": selected_pk}
-                query = f'UPDATE "{schema}".applications SET {set_clause} WHERE "{PK}" = %(target_pk)s;'
                 with conn.cursor() as cur:
-                    cur.execute(query, params)
+                    if btn_insert:
+                        cur.execute(f'INSERT INTO "{schema}".fact_application (company_id, job_name, lang_id, status, job_cat_id) VALUES (%s, %s, %s, %s, %s) RETURNING application_id;', (cid, job_val, lid, stat_val, jcid))
+                        app_id = cur.fetchone()[0]
+                    else:
+                        cur.execute(f'UPDATE "{schema}".fact_application SET company_id=%s, job_name=%s, lang_id=%s, status=%s, job_cat_id=%s WHERE application_id=%s;', (cid, job_val, lid, stat_val, jcid, selected_pk_app))
+                        app_id = selected_pk_app
+                    
+                    cur.execute(f'UPDATE "{schema}".dim_resume_details SET ex1=%s, ex2=%s, ex3=%s, ed1=%s, ed2=%s, ed3=%s, skills=%s WHERE application_id=%s;', (ex1, ex2, ex3, ed1, ed2, ed3, skills, app_id))
                 conn.commit()
-                conn.close()
-                st.success(f"Actualizado correctamente ✅ ({len(changed)} campos)")
+                st.success("Success! ✅")
                 st.rerun()
             except Exception as e:
-                if 'conn' in locals(): conn.rollback(); conn.close()
-                st.error(f"Error SQL: {e}")
+                conn.rollback()
+                st.error(f"DB Error: {e}")
+            finally:
+                conn.close()
 
-if submit_insert:
+# ==============================================================================
+# TAB 2: TRACKING DETAILS
+# ==============================================================================
+with tab2:
+    st.header("📍 Tracking Details Management")
+    
+    query_tracking = f"""
+        SELECT 
+            dc.company_name, fact_app.job_name, dl."language", fact_app.status, djc.category_name,
+            dtrack.application_id, dtrack.contact_name, dtrack.contact_email, dtrack.position_url, fact_app.created_at
+        FROM "{schema}".fact_application fact_app 
+        JOIN "{schema}".dim_tracker dtrack ON dtrack.application_id = fact_app.application_id 
+        JOIN "{schema}".dim_company dc ON dc.company_id = fact_app.company_id
+        JOIN "{schema}".dim_language dl ON dl.lang_id = fact_app.lang_id 
+        LEFT JOIN "{schema}".dim_job_category djc ON djc.job_cat_id = fact_app.job_cat_id 
+        ORDER BY fact_app.created_at DESC;
+    """
     try:
-        conn = db.get_db_connection()
-        cols_sql = ", ".join([f'"{c}"' for c in new_values.keys()])
-        placeholders = ", ".join([f"%({c})s" for c in new_values.keys()])
-        with conn.cursor() as cur:
-            cur.execute(f'INSERT INTO "{schema}".applications ({cols_sql}) VALUES ({placeholders});', new_values)
-        conn.commit()
-        conn.close()
-        st.success("Creada ✅")
-        st.rerun()
+        df_track = pd.read_sql(query_tracking, engine)
     except Exception as e:
-        if 'conn' in locals(): conn.rollback(); conn.close()
-        st.error(f"Error al insertar: {e}")
+        st.error(f"Error loading tracking: {e}")
+        df_track = pd.DataFrame()
 
-# === CV Generation ===
-gen = CV_GENERATION(working_folder, {"DB_URL": os.getenv("DB_POSTGRESQL")}) 
+    if not df_track.empty:
+        cols_show_t = ["company_name", "job_name", "language", "status", "category_name", "contact_name", "contact_email", "position_url"]
+        st.dataframe(df_track[cols_show_t], use_container_width=True, height=300)
+    else:
+        st.info("No tracking records found.")
 
-if st.button("📄 Actualizar lista de CV templates"):
-    gen.get_cv_files()
-    st.rerun()
+    st.subheader("📝 Update Tracking Details")
+    
+    selected_pk_track = None
+    original_track = {}
+    if not df_track.empty:
+        options_t = df_track.copy()
+        options_t["label"] = options_t["job_name"].fillna("") + " | " + options_t["company_name"].fillna("") + " | " + options_t["created_at"].astype(str)
+        label_list_t = options_t["label"].tolist()
+        pk_by_label_t = dict(zip(options_t["label"], options_t[PK]))
+        selected_label_t = st.selectbox("Select application to update tracking:", [""] + label_list_t, key="sel_track")
+        if selected_label_t:
+            selected_pk_track = pk_by_label_t[selected_label_t]
+            original_track = df_track[df_track[PK] == selected_pk_track].iloc[0].to_dict()
 
-if st.button("📄 Generar CV para este registro", disabled=(selected_pk is None)):
-    df_cv = df_full[df_full[PK] == selected_pk].copy()
-    if not df_cv.empty:
-        gen.postgre_to_docx("cv", df_cv, ui_log=ui_log)
-        ui_log("Proceso ejecutado ✅", "success")
+    with st.form("form_milestone_2", clear_on_submit=False):
+        c1, c2 = st.columns(2)
+        with c1:
+            c_name = st.text_input("Contact Name", value=original_track.get("contact_name", "") or "")
+            c_email = st.text_input("Contact Email", value=original_track.get("contact_email", "") or "")
+        with c2:
+            p_url = st.text_input("Position URL", value=original_track.get("position_url", "") or "")
+        
+        btn_save_track = st.form_submit_button("💾 Save Tracking Details (Milestone 2)")
 
-col1, col2 = st.columns(2)
-if col1.button("📁 Abre plantillas"): gen.open_folder(db.templates_path)
-if col2.button("📁 Abre resultados"): gen.open_folder(db.output_path)
+    if btn_save_track:
+        if not selected_pk_track:
+            st.error("Please select a record from the list.")
+        else:
+            conn = db.get_db_connection()
+            try:
+                with conn.cursor() as cur:
+                    cur.execute(f'UPDATE "{schema}".dim_tracker SET contact_name=%s, contact_email=%s, position_url=%s WHERE application_id=%s;', (c_name, c_email, p_url, selected_pk_track))
+                conn.commit()
+                st.success("Tracking Updated! ✅")
+                st.rerun()
+            except Exception as e:
+                conn.rollback()
+                st.error(f"DB Error: {e}")
+            finally:
+                conn.close()
