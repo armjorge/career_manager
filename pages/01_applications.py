@@ -142,18 +142,6 @@ with tab1:
             new_c_input = st.text_input("New Category (if needed)", value="")
 
         st.write("---")
-        st.subheader("📄 Resume Details")
-        col_r1, col_r2 = st.columns(2)
-        with col_r1:
-            ex1 = st.text_area("Experience 1", value=original_app.get("ex1", "") or "", height=80)
-            ex2 = st.text_area("Experience 2", value=original_app.get("ex2", "") or "", height=80)
-            ex3 = st.text_area("Experience 3", value=original_app.get("ex3", "") or "", height=80)
-        with col_r2:
-            ed1 = st.text_area("Education 1", value=original_app.get("ed1", "") or "", height=80)
-            ed2 = st.text_area("Education 2", value=original_app.get("ed2", "") or "", height=80)
-            ed3 = st.text_area("Education 3", value=original_app.get("ed3", "") or "", height=80)
-            skills = st.text_area("Skills", value=original_app.get("skills", "") or "", height=80)
-
         c1, c2 = st.columns(2)
         btn_update = c1.form_submit_button("💾 Save Changes (Milestone 1)")
         btn_insert = c2.form_submit_button("➕ Create New Application")
@@ -177,7 +165,6 @@ with tab1:
                         cur.execute(f'UPDATE "{schema}".fact_application SET company_id=%s, job_name=%s, lang_id=%s, status=%s, job_cat_id=%s WHERE application_id=%s;', (cid, job_val, lid, stat_val, jcid, selected_pk_app))
                         app_id = selected_pk_app
                     
-                    cur.execute(f'UPDATE "{schema}".dim_resume_details SET ex1=%s, ex2=%s, ex3=%s, ed1=%s, ed2=%s, ed3=%s, skills=%s WHERE application_id=%s;', (ex1, ex2, ex3, ed1, ed2, ed3, skills, app_id))
                 conn.commit()
                 st.success("Success! ✅")
                 st.rerun()

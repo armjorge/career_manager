@@ -29,8 +29,8 @@ st.page_link(
 )
 
 st.page_link(
-    "pages/02_cover_letters.py",
-    label="Cartas presentación",
+    "pages/02_pdf_letters_resumes.py",
+    label="Cartas y CV",
     icon="✉️",
 )
 
