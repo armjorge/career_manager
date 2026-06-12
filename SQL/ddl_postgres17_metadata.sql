@@ -65,7 +65,7 @@ COMMENT ON COLUMN consulting_tracker.fact_pdf_generator.active_status IS 'Boolea
 COMMENT ON COLUMN consulting_tracker.fact_pdf_generator.file_hash IS 'Unique MD5/SHA hash of the file content for deduplication. [Dimension]';
 COMMENT ON COLUMN consulting_tracker.fact_pdf_generator.file_name IS 'The original name of the file on disk. [Filtered Name]';
 COMMENT ON COLUMN consulting_tracker.fact_pdf_generator.output_file IS 'Path or name of the generated output document. [Dimension]';
-COMMENT ON COLUMN consulting_tracker.fact_pdf_generator.job_status IS 'Outcome of the job execution (success/failure). [Fact]';
+COMMENT ON COLUMN consulting_tracker.fact_pdf_generator.pdf_success IS 'Outcome of the job execution (success/failure). [Fact]';
 COMMENT ON COLUMN consulting_tracker.fact_pdf_generator.created_at IS 'Timestamp indicating when the record was created. [Time Dimension]';
 
 -- -------------------------------------------------------------

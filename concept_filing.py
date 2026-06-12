@@ -35,8 +35,8 @@ st.page_link(
 )
 
 st.page_link(
-    "pages/03_job_tracker.py",
-    label="Tracker de aplicaciones",
+    "pages/03_pdf_generator.py",
+    label="Generador de Archivos",
     icon="📈",
 )
 

@@ -123,7 +123,7 @@ CREATE TABLE consulting_tracker.fact_pdf_generator (
     file_hash character(64) NOT NULL,
     file_name character varying(255),
     output_file character varying(255) DEFAULT 'output_file.docx'::character varying NOT NULL,
-    job_status boolean DEFAULT true NOT NULL,
+    pdf_success boolean DEFAULT true NOT NULL,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT fact_job_pkey PRIMARY KEY (application_id, file_hash, job_status, created_at),
     CONSTRAINT fact_job_application_id_fkey FOREIGN KEY (application_id) 

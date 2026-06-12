@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import os
@@ -8,6 +9,7 @@ from datetime import datetime
 # 1) Setup Path to find Library
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from Library.db_utils import DB_UTILS
+from Library.CV_generation import CV_GENERATION
 
 # 2) Page Config
 st.set_page_config(page_title="📄 Milestones: Resume & Cover Letters", layout="wide")
@@ -29,7 +31,7 @@ st.title("📄 Application Milestones")
 # --- SHARED DATA FETCHING ---
 def fetch_active_files():
     query = f"""
-        SELECT file_id, file_name 
+        SELECT file_id, file_name, file_type
         FROM "{schema}".dim_file 
         WHERE active_status = True 
         ORDER BY created_at DESC;
@@ -38,7 +40,8 @@ def fetch_active_files():
 
 df_files = fetch_active_files()
 file_options = dict(zip(df_files['file_name'], df_files['file_id']))
-file_list = [""] + sorted(list(file_options.keys()))
+cv_list = [""] + sorted(df_files[df_files['file_type'] == 'cv']['file_name'].tolist())
+cl_list = [""] + sorted(df_files[df_files['file_type'] == 'cover letter']['file_name'].tolist())
 
 # Create Tabs
 tab1, tab2 = st.tabs(["📝 Milestone: Resume Details", "✉️ Milestone: Cover Letter"])
@@ -48,7 +51,7 @@ tab1, tab2 = st.tabs(["📝 Milestone: Resume Details", "✉️ Milestone: Cover
 # ==============================================================================
 with tab1:
     st.header("📝 Resume Details Management")
-    
+
     query_resume_master = f"""
         SELECT 
             dc.company_name,
@@ -71,7 +74,7 @@ with tab1:
         LEFT JOIN "{schema}".dim_file dimf ON dimf.file_id = drd.file_id 
         ORDER BY fa.created_at DESC;
     """
-    
+
     try:
         df_resume = pd.read_sql(query_resume_master, engine)
     except Exception as e:
@@ -88,7 +91,7 @@ with tab1:
         st.info("No applications found for resume filling.")
 
     st.subheader("✏️ Fill/Update Resume Details")
-    
+
     selected_pk_r = None
     original_r = {}
     if not df_resume.empty:
@@ -96,7 +99,7 @@ with tab1:
         label_list_r = df_resume["label"].tolist()
         pk_by_label_r = dict(zip(df_resume["label"], df_resume["application_id"]))
         selected_label_r = st.selectbox("Select application for Resume:", [""] + label_list_r, key="sel_res")
-        
+
         if selected_label_r:
             selected_pk_r = pk_by_label_r[selected_label_r]
             original_r = df_resume[df_resume["application_id"] == selected_pk_r].iloc[0].to_dict()
@@ -113,11 +116,11 @@ with tab1:
             ex2 = st.text_area("Experience 2", value=original_r.get("ex2", "") or "", height=100)
             ex3 = st.text_area("Experience 3", value=original_r.get("ex3", "") or "", height=100)
             skills = st.text_area("Skills", value=original_r.get("skills", "") or "", height=100)
-        
+
         curr_file_r = original_r.get("file_name", "")
-        selected_file_r = st.selectbox("Associated File (Template)", options=file_list, 
-                                       index=file_list.index(curr_file_r) if curr_file_r in file_list else 0,
-                                       key="file_res")
+        selected_file_r = st.selectbox("Associated File (Template)", options=cv_list, 
+        index=cv_list.index(curr_file_r) if curr_file_r in cv_list else 0,
+        key="file_res")
 
         submit_r = st.form_submit_button("💾 Save Resume Details")
 
@@ -149,7 +152,7 @@ with tab1:
 # ==============================================================================
 with tab2:
     st.header("✉️ Cover Letter Management")
-    
+
     query_cover_master = f"""
         SELECT 
             dc.company_name,
@@ -172,7 +175,7 @@ with tab2:
         LEFT JOIN "{schema}".dim_file dimf ON dimf.file_id = dcletter.file_id 
         ORDER BY fa.created_at DESC;
     """
-    
+
     try:
         df_cover = pd.read_sql(query_cover_master, engine)
     except Exception as e:
@@ -189,7 +192,7 @@ with tab2:
         st.info("No applications found for cover letter filling.")
 
     st.subheader("✏️ Fill/Update Cover Letter")
-    
+
     selected_pk_c = None
     original_c = {}
     if not df_cover.empty:
@@ -197,7 +200,7 @@ with tab2:
         label_list_c = df_cover["label"].tolist()
         pk_by_label_c = dict(zip(df_cover["label"], df_cover["application_id"]))
         selected_label_c = st.selectbox("Select application for Cover Letter:", [""] + label_list_c, key="sel_cov")
-        
+
         if selected_label_c:
             selected_pk_c = pk_by_label_c[selected_label_c]
             original_c = df_cover[df_cover["application_id"] == selected_pk_c].iloc[0].to_dict()
@@ -206,10 +209,10 @@ with tab2:
         header_text = st.text_area("Header", value=original_c.get("header", "") or "", height=100)
         body_text = st.text_area("Body", value=original_c.get("body", "") or "", height=250)
         close_text = st.text_area("Close", value=original_c.get("close", "") or "", height=100)
-        
+
         curr_file_c = original_c.get("file_name", "")
-        selected_file_c = st.selectbox("Associated File (Template)", options=file_list, 
-                                       index=file_list.index(curr_file_c) if curr_file_c in file_list else 0,
+        selected_file_c = st.selectbox("Associated File (Template)", options=cl_list, 
+                                       index=cl_list.index(curr_file_c) if curr_file_c in cl_list else 0,
                                        key="file_cov")
 
         submit_c = st.form_submit_button("💾 Save Cover Letter")
@@ -236,3 +239,71 @@ with tab2:
                 st.error(f"Database error: {e}")
             finally:
                 conn.close()
+
+# --- TEMPLATE MANAGEMENT SECTION ---
+st.write("---")
+with st.expander("🛠️ Template Management (Sync & Configure)"):
+    # 1. Sync Button
+    if st.button("🔄 Sync Templates from Folder"):
+        cv_gen = CV_GENERATION(db.working_folder, {"DB_URL": os.getenv("DB_POSTGRESQL")})
+        added, deactivated, reactivated = cv_gen.get_cv_files()
+        st.success(f"Sync complete! Added: {added}, Deactivated: {deactivated}, Reactivated: {reactivated}")
+        st.rerun()
+
+    # 2. Display & Edit Templates
+    st.subheader("📋 Active Templates")
+
+    # Fetch languages for dropdown
+    df_langs = pd.read_sql(f'SELECT lang_id, "language" FROM "{schema}".dim_language', engine)
+    lang_map = dict(zip(df_langs['language'], df_langs['lang_id']))
+    lang_list = [""] + sorted(list(lang_map.keys()))
+
+    # Fetch active files
+    df_files_manage = pd.read_sql(f"""
+        SELECT f.file_id, f.file_name, f.file_type, l."language" 
+        FROM "{schema}".dim_file f
+        LEFT JOIN "{schema}".dim_language l ON l.lang_id = f.lang_id
+        WHERE f.active_status = True
+        ORDER BY f.file_name ASC
+    """, engine)
+
+    if not df_files_manage.empty:
+        edited_df = st.data_editor(
+            df_files_manage,
+            column_config={
+                "file_id": None, # Hide ID
+                "file_name": st.column_config.TextColumn("File Name", disabled=True),
+                "file_type": st.column_config.SelectboxColumn("Type", options=["cv", "cover letter"], required=True),
+                "language": st.column_config.SelectboxColumn("Language", options=lang_list)
+            },
+            hide_index=True,
+            use_container_width=True,
+            key="template_editor"
+        )
+
+        if st.button("💾 Save Template Changes"):
+            conn = db.get_db_connection()
+            try:
+                with conn.cursor() as cur:
+                    for _, row in edited_df.iterrows():
+                        fid = row['file_id']
+                        ftype = row['file_type']
+                        lang_name = row['language']
+                        lid = lang_map.get(lang_name) if lang_name else None
+
+                        cur.execute(f"""
+                            UPDATE "{schema}".dim_file 
+                            SET file_type = %s, lang_id = %s
+                            WHERE file_id = %s
+                        """, (ftype, lid, fid))
+                conn.commit()
+                st.success("Template settings updated! ✅")
+                st.rerun()
+            except Exception as e:
+                conn.rollback()
+                st.error(f"Error saving templates: {e}")
+            finally:
+                conn.close()
+    else:
+        st.info("No active templates found. Try syncing.")
+
