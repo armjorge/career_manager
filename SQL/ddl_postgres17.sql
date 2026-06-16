@@ -23,6 +23,15 @@ CREATE SEQUENCE consulting_tracker.seq_fact_pdf
     NO MINVALUE
     NO MAXVALUE
     CACHE 1;
+
+CREATE SEQUENCE consulting_tracker.seq_web_list
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
 -- ==========================================
 -- 2. TRIGGER FUNCTIONS (Compiled Early)
 -- ==========================================
@@ -117,17 +126,15 @@ CREATE TABLE consulting_tracker.fact_application (
 	CONSTRAINT fact_application_lang_id_fkey FOREIGN KEY (lang_id) REFERENCES consulting_tracker.dim_language(lang_id)
 );
 CREATE TABLE consulting_tracker.fact_pdf_generator (
-    pdf_id integer DEFAULT nextval('consulting_tracker.seq_fact_pdf'::regclass) NOT NULL,
-    application_id integer NOT NULL,
-    active_status boolean NOT NULL,
-    file_hash character(64) NOT NULL,
-    file_name character varying(255),
-    output_file character varying(255) DEFAULT 'output_file.docx'::character varying NOT NULL,
-    job_status boolean DEFAULT true NOT NULL,
-    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT fact_job_pkey PRIMARY KEY (application_id, file_hash, job_status, created_at),
-    CONSTRAINT fact_job_application_id_fkey FOREIGN KEY (application_id) 
-        REFERENCES consulting_tracker.fact_application(application_id) ON DELETE CASCADE
+	pdf_id int4 DEFAULT nextval('consulting_tracker.seq_fact_pdf'::regclass) NOT NULL, -- Unique identifier for a specific execution job, such as PDF generation. [Dimension/PK]
+	application_id int4 NOT NULL, -- Unique identifier for the job application process. [Dimension/PK]
+	file_hash bpchar(64) NOT NULL, -- Unique MD5/SHA hash of the file content for deduplication. [Dimension]
+	file_name varchar(255) NULL, -- The original name of the file on disk. [Filtered Name]
+	output_file varchar(255) DEFAULT 'output_file.docx'::character varying NOT NULL, -- Path or name of the generated output document. [Dimension]
+	pdf_success bool DEFAULT true NOT NULL, -- Outcome of the job execution (success/failure). [Fact]
+	created_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL, -- Timestamp indicating when the record was created. [Time Dimension]
+	CONSTRAINT fact_job_pkey PRIMARY KEY (application_id, file_hash, pdf_success, created_at),
+    CONSTRAINT fact_job_application_id_fkey FOREIGN KEY (application_id) REFERENCES consulting_tracker.fact_application(application_id) ON DELETE CASCADE
 );
 
 
@@ -164,6 +171,17 @@ CREATE TABLE consulting_tracker.dim_tracker (
 	CONSTRAINT dim_tracker_pkey PRIMARY KEY (application_id),
 	CONSTRAINT dim_tracker_application_id_fkey FOREIGN KEY (application_id) REFERENCES consulting_tracker.fact_application(application_id)
 );
+
+CREATE TABLE consulting_tracker.fact_web_list ( 
+	site_id int4 DEFAULT nextval('consulting_tracker.seq_web_list'::regclass) NOT NULL,
+	address text NOT NULL, 
+	created_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	last_modification timestamptz,
+	CONSTRAINT fact_web_list_pkey PRIMARY KEY (site_id)
+) ;
+
+
+CREATE UNIQUE INDEX uq_fact_web_list ON consulting_tracker.fact_web_list USING btree (lower((address)::text));
 
 
 -- ==========================================
