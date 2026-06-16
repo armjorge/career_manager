@@ -56,17 +56,17 @@ COMMENT ON COLUMN consulting_tracker.fact_application.job_cat_id IS 'Unique iden
 COMMENT ON COLUMN consulting_tracker.fact_application.created_at IS 'Timestamp indicating when the record was created. [Time Dimension]';
 
 -- -------------------------------------------------------------
--- Entity: fact_job
+-- Entity: fact_pdf_generator
 -- -------------------------------------------------------------
 COMMENT ON TABLE consulting_tracker.fact_pdf_generator IS 'Transaction table tracking the status and output of automated document generation jobs.';
 COMMENT ON COLUMN consulting_tracker.fact_pdf_generator.pdf_id IS 'Unique identifier for a specific execution job, such as PDF generation. [Dimension/PK]';
 COMMENT ON COLUMN consulting_tracker.fact_pdf_generator.application_id IS 'Unique identifier for the job application process. [Dimension/PK]';
-COMMENT ON COLUMN consulting_tracker.fact_pdf_generator.active_status IS 'Boolean flag indicating if the record is currently active or valid. [Fact]';
 COMMENT ON COLUMN consulting_tracker.fact_pdf_generator.file_hash IS 'Unique MD5/SHA hash of the file content for deduplication. [Dimension]';
 COMMENT ON COLUMN consulting_tracker.fact_pdf_generator.file_name IS 'The original name of the file on disk. [Filtered Name]';
 COMMENT ON COLUMN consulting_tracker.fact_pdf_generator.output_file IS 'Path or name of the generated output document. [Dimension]';
 COMMENT ON COLUMN consulting_tracker.fact_pdf_generator.pdf_success IS 'Outcome of the job execution (success/failure). [Fact]';
 COMMENT ON COLUMN consulting_tracker.fact_pdf_generator.created_at IS 'Timestamp indicating when the record was created. [Time Dimension]';
+
 
 -- -------------------------------------------------------------
 -- Entity: dim_resume_details

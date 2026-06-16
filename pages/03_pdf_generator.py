@@ -203,11 +203,10 @@ else:
                     with conn.cursor() as cur:
                         query_log = f"""
                             INSERT INTO "{schema}".fact_pdf_generator 
-                            (application_id, active_status, file_hash, file_name, output_file, job_status, created_at)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s)
+                            (application_id, file_hash, file_name, output_file, pdf_success, created_at)
+                            VALUES (%s, %s, %s, %s, %s, %s)
                         """
-                        # mapping success to active_status
-                        cur.execute(query_log, (aid, success, fhash, tname, final_name, True, datetime.now()))
+                        cur.execute(query_log, (aid, fhash, tname, final_name, success, datetime.now()))
                     conn.commit()
                 except Exception as e:
                     conn.rollback()
@@ -220,7 +219,7 @@ st.write("---")
 st.subheader("📜 Recent Generations")
 try:
     df_recent = pd.read_sql(f"""
-        SELECT application_id, output_file, active_status as success, created_at 
+        SELECT application_id, output_file, pdf_success as success, created_at 
         FROM "{schema}".fact_pdf_generator 
         ORDER BY created_at DESC 
         LIMIT 10
