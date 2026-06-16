@@ -40,3 +40,8 @@ st.page_link(
     icon="📈",
 )
 
+st.page_link(
+    "pages/06_sites.py",
+    label="Web pages",
+    #icon="𝍌",
+)

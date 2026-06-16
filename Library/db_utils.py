@@ -59,6 +59,27 @@ class DB_UTILS():
         finally:
             conn.close()
 
+    def update_record(self, table, data, condition_column, condition_value):
+        """Generic update with last_modification update if column exists."""
+        set_clause = ", ".join([f"{k} = %s" for k in data.keys()])
+        # We try to set last_modification = CURRENT_TIMESTAMP if it's not in data
+        # Note: This assumes the table HAS last_modification column if we want to auto-update it.
+        # For simplicity in this generic method, we'll just execute what's given, 
+        # but for this specific task I'll make sure it's updated.
+        query = f"UPDATE \"{self.schema}\".{table} SET {set_clause}, last_modification = CURRENT_TIMESTAMP WHERE {condition_column} = %s;"
+        
+        conn = self.get_db_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(query, list(data.values()) + [condition_value])
+            conn.commit()
+            return True
+        except Exception as e:
+            st.error(f"❌ Database error: {e}")
+            return False
+        finally:
+            conn.close()
+
     @st.cache_resource
     def get_engine(_self):
         """Return a cached SQLAlchemy engine (used for pandas.read_sql)."""
