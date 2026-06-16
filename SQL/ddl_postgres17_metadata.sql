@@ -104,3 +104,12 @@ COMMENT ON COLUMN consulting_tracker.dim_tracker.position_url IS 'URL link to th
 COMMENT ON COLUMN consulting_tracker.dim_tracker.resume IS 'Path or reference to the generated resume file. [Dimension]';
 COMMENT ON COLUMN consulting_tracker.dim_tracker.cover_letter IS 'Path or reference to the generated cover letter file. [Dimension]';
 COMMENT ON COLUMN consulting_tracker.dim_tracker.position_pdf IS 'Path or reference to the original job description PDF. [Dimension]';
+
+-- -------------------------------------------------------------
+-- Entity: fact_web_list
+-- -------------------------------------------------------------
+COMMENT ON TABLE consulting_tracker.fact_web_list IS 'Repository table storing a list of relevant websites and job boards for tracking and quick access.';
+COMMENT ON COLUMN consulting_tracker.fact_web_list.site_id IS 'Unique identifier for the website record. [Dimension/PK]';
+COMMENT ON COLUMN consulting_tracker.fact_web_list.address IS 'The web address or URL of the target site. [Filtered Name]';
+COMMENT ON COLUMN consulting_tracker.fact_web_list.created_at IS 'Timestamp indicating when the record was created. [Time Dimension]';
+COMMENT ON COLUMN consulting_tracker.fact_web_list.last_modification IS 'Timestamp indicating when the record was last modified. [Time Dimension]';

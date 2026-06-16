@@ -23,6 +23,15 @@ CREATE SEQUENCE consulting_tracker.seq_fact_pdf
     NO MINVALUE
     NO MAXVALUE
     CACHE 1;
+
+CREATE SEQUENCE consulting_tracker.seq_web_list
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
 -- ==========================================
 -- 2. TRIGGER FUNCTIONS (Compiled Early)
 -- ==========================================
@@ -162,6 +171,17 @@ CREATE TABLE consulting_tracker.dim_tracker (
 	CONSTRAINT dim_tracker_pkey PRIMARY KEY (application_id),
 	CONSTRAINT dim_tracker_application_id_fkey FOREIGN KEY (application_id) REFERENCES consulting_tracker.fact_application(application_id)
 );
+
+CREATE TABLE consulting_tracker.fact_web_list ( 
+	site_id int4 DEFAULT nextval('consulting_tracker.seq_web_list'::regclass) NOT NULL,
+	address text NOT NULL, 
+	created_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	last_modification timestamptz,
+	CONSTRAINT fact_web_list_pkey PRIMARY KEY (site_id)
+) ;
+
+
+CREATE UNIQUE INDEX uq_fact_web_list ON consulting_tracker.fact_web_list USING btree (lower((address)::text));
 
 
 -- ==========================================
