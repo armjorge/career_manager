@@ -6,10 +6,13 @@ import {
   FolderOpen,
   Globe,
   LayoutDashboard,
+  LogOut,
   Rocket,
 } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { isMockMode } from '@/api/client'
+import { Button } from '@/components/ui/Button'
+import { useAuth } from '@/context/AuthContext'
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -22,10 +25,12 @@ const navItems = [
 ]
 
 export function AppShell() {
+  const { user, logout } = useAuth()
+
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[260px_1fr]">
       <aside className="border-b border-border bg-surface lg:border-b-0 lg:border-r">
-        <div className="flex h-full flex-col">
+        <div className="flex h-full min-h-screen flex-col">
           <div className="border-b border-border px-5 py-6">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
@@ -43,7 +48,7 @@ export function AppShell() {
             ) : null}
           </div>
 
-          <nav className="flex gap-1 overflow-x-auto p-3 lg:flex-col lg:overflow-visible">
+          <nav className="flex flex-1 gap-1 overflow-x-auto p-3 lg:flex-col lg:overflow-visible">
             {navItems.map(({ to, label, icon: Icon, end }) => (
               <NavLink
                 key={to}
@@ -63,6 +68,25 @@ export function AppShell() {
               </NavLink>
             ))}
           </nav>
+
+          <div className="mt-auto border-t border-border p-4">
+            <div className="mb-3 min-w-0">
+              <p className="truncate text-sm font-medium text-foreground">
+                {user?.name ?? 'Signed in'}
+              </p>
+              <p className="truncate text-xs text-muted">{user?.email}</p>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start"
+              onClick={() => void logout()}
+            >
+              <LogOut className="h-4 w-4" />
+              Sign out
+            </Button>
+          </div>
         </div>
       </aside>
 

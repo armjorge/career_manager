@@ -225,8 +225,8 @@ export function CompaniesPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Companies, Types & Languages</h1>
         <p className="mt-2 text-muted">
-          Master data setup before creating applications. Changes persist in the mock store for this
-          session.
+          Master data setup before creating applications. Changes are saved to your Neon Postgres
+          workspace (scoped to your account).
         </p>
       </div>
 

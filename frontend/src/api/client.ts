@@ -1,3 +1,4 @@
+import { getStoredToken } from '@/auth/tokenStorage'
 import type { ApiError } from '@/types'
 
 export class ApiClientError extends Error {
@@ -33,10 +34,13 @@ export async function apiClient<T>(
 ): Promise<T> {
   const { body, headers, ...rest } = options
 
+  const token = getStoredToken()
+
   const response = await fetch(`${baseUrl}${path}`, {
     ...rest,
     headers: {
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...headers,
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,

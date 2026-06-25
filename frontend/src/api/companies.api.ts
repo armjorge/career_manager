@@ -1,38 +1,32 @@
-import { isMockMode } from '@/api/client'
+import { apiClient, isMockMode } from '@/api/client'
 import { mockDb } from '@/api/mock/store'
 import type { Company, CompanyType, Language } from '@/types'
 
 export const companiesApi = {
   listTypes: (): Promise<CompanyType[]> =>
-    isMockMode ? mockDb.listCompanyTypes() : fetch('/company-types').then((r) => r.json()),
+    isMockMode ? mockDb.listCompanyTypes() : apiClient<CompanyType[]>('/company-types'),
 
   createType: (typeName: string): Promise<CompanyType> =>
     isMockMode
       ? mockDb.createCompanyType(typeName)
-      : fetch('/company-types', {
-          method: 'POST',
-          body: JSON.stringify({ typeName }),
-        }).then((r) => r.json()),
+      : apiClient<CompanyType>('/company-types', { method: 'POST', body: { typeName } }),
 
   listLanguages: (): Promise<Language[]> =>
-    isMockMode ? mockDb.listLanguages() : fetch('/languages').then((r) => r.json()),
+    isMockMode ? mockDb.listLanguages() : apiClient<Language[]>('/languages'),
 
   createLanguage: (language: string): Promise<Language> =>
     isMockMode
       ? mockDb.createLanguage(language)
-      : fetch('/languages', {
-          method: 'POST',
-          body: JSON.stringify({ language }),
-        }).then((r) => r.json()),
+      : apiClient<Language>('/languages', { method: 'POST', body: { language } }),
 
   list: (): Promise<Company[]> =>
-    isMockMode ? mockDb.listCompanies() : fetch('/companies').then((r) => r.json()),
+    isMockMode ? mockDb.listCompanies() : apiClient<Company[]>('/companies'),
 
   create: (companyName: string, ctypeId: number): Promise<Company> =>
     isMockMode
       ? mockDb.createCompany(companyName, ctypeId)
-      : fetch('/companies', {
+      : apiClient<Company>('/companies', {
           method: 'POST',
-          body: JSON.stringify({ companyName, ctypeId }),
-        }).then((r) => r.json()),
+          body: { companyName, ctypeId },
+        }),
 }
