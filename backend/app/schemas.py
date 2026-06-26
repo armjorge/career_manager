@@ -89,3 +89,22 @@ class ApplicationCreate(ApiModel):
 
 class ApplicationUpdate(ApplicationCreate):
     application_id: int
+
+
+class TrackerOut(ApiModel):
+    application_id: int
+    contact_name: str | None = None
+    contact_email: str | None = None
+    position_url: str | None = None
+    job_name: str
+    company_name: str
+    language: str | None = None
+    status: Literal["open", "closed"]
+    category_name: str | None = None
+    created_at: datetime
+
+
+class TrackerUpdate(ApiModel):
+    contact_name: str | None = None
+    contact_email: str | None = None
+    position_url: str | None = None
