@@ -1,3 +1,5 @@
+import type { AuthUser } from '@/types/auth'
+
 const TOKEN_STORAGE_KEY = 'career_manager.auth.token'
 
 export interface JwtPayload {
@@ -8,14 +10,22 @@ export interface JwtPayload {
 }
 
 export function getStoredToken(): string | null {
-  return localStorage.getItem(TOKEN_STORAGE_KEY)
+  try {
+    return localStorage.getItem(TOKEN_STORAGE_KEY)
+  } catch {
+    return null
+  }
 }
 
 export function setStoredToken(token: string | null): void {
-  if (token) {
-    localStorage.setItem(TOKEN_STORAGE_KEY, token)
-  } else {
-    localStorage.removeItem(TOKEN_STORAGE_KEY)
+  try {
+    if (token) {
+      localStorage.setItem(TOKEN_STORAGE_KEY, token)
+    } else {
+      localStorage.removeItem(TOKEN_STORAGE_KEY)
+    }
+  } catch {
+    // Ignore storage failures (private mode / blocked storage).
   }
 }
 
@@ -39,9 +49,38 @@ export function extractUserIdFromToken(token: string): string | null {
 }
 
 export function isTokenExpired(token: string): boolean {
+  return !isUsableToken(token)
+}
+
+export function isUsableToken(token: string | null | undefined): token is string {
+  if (!token) return false
+  const parts = token.split('.')
+  if (parts.length !== 3) return false
+
   const payload = decodeJwtPayload(token)
-  if (!payload?.exp) return false
-  return payload.exp * 1000 <= Date.now()
+  if (!payload?.sub) return false
+  if (typeof payload.exp !== 'number') return false
+
+  return payload.exp * 1000 > Date.now()
+}
+
+export function userFromToken(token: string): AuthUser | null {
+  const payload = decodeJwtPayload(token)
+  if (!payload?.sub) return null
+
+  const name =
+    typeof payload.name === 'string'
+      ? payload.name
+      : typeof payload.user_name === 'string'
+        ? payload.user_name
+        : null
+
+  return {
+    id: String(payload.sub),
+    email: typeof payload.email === 'string' ? payload.email : '',
+    name,
+    emailVerified: Boolean(payload.email_verified ?? payload.emailVerified),
+  }
 }
 
 export function readTokenFromSession(session: Record<string, unknown> | null | undefined): string | null {

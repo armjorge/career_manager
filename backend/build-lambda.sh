@@ -67,24 +67,35 @@ EOF
   exit 1
 }
 
+LAMBDA_ARCH="x86_64"
+LAMBDA_PYTHON_VERSION="3.12"
+
+needs_cross_build() {
+  local host_arch
+  host_arch="$(uname -m)"
+  case "${host_arch}" in
+    x86_64|amd64) return 1 ;;
+    *) return 0 ;;
+  esac
+}
+
 install_dependencies() {
   local pip_cmd="$1"
 
-  # On macOS, cross-build Linux wheels for Lambda (x86_64).
-  if [[ "$(uname -s)" == "Darwin" ]]; then
-  echo "Building Linux-compatible dependencies for AWS Lambda..."
+  if needs_cross_build; then
+    echo "Cross-building manylinux ${LAMBDA_ARCH} wheels for AWS Lambda (host: $(uname -m))..."
     ${pip_cmd} install \
       -r "${REQUIREMENTS}" \
       -t "${PACKAGE_DIR}" \
-      --platform manylinux2014_x86_64 \
+      --platform manylinux2014_${LAMBDA_ARCH} \
       --implementation cp \
-      --python-version 3.12 \
+      --python-version "${LAMBDA_PYTHON_VERSION}" \
       --only-binary=:all: \
       --upgrade
     return
   fi
 
-  echo "Building dependencies for Linux Lambda..."
+  echo "Building dependencies for Linux Lambda (${LAMBDA_ARCH})..."
   ${pip_cmd} install -r "${REQUIREMENTS}" -t "${PACKAGE_DIR}" --upgrade
 }
 

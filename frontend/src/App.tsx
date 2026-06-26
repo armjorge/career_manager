@@ -26,7 +26,7 @@ function AuthGate() {
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex items-center gap-3 text-sm text-muted">
           <Loader2 className="h-5 w-5 animate-spin text-primary" />
-          Loading session...
+          Signing in...
         </div>
       </div>
     )

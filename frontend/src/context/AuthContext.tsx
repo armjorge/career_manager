@@ -9,11 +9,11 @@ import {
 } from 'react'
 import { authClient, isAuthConfigured } from '@/auth/client'
 import {
-  extractUserIdFromToken,
   getStoredToken,
-  isTokenExpired,
+  isUsableToken,
   readTokenFromSession,
   setStoredToken,
+  userFromToken,
 } from '@/auth/tokenStorage'
 import type { AuthUser } from '@/types/auth'
 
@@ -28,6 +28,25 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
+const AUTH_REQUEST_TIMEOUT_MS = 10_000
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = window.setTimeout(() => {
+      reject(new Error(`${label} timed out after ${timeoutMs}ms`))
+    }, timeoutMs)
+
+    promise
+      .then((value) => {
+        window.clearTimeout(timer)
+        resolve(value)
+      })
+      .catch((error: unknown) => {
+        window.clearTimeout(timer)
+        reject(error)
+      })
+  })
+}
 
 function mapUser(raw: Record<string, unknown>): AuthUser {
   return {
@@ -38,12 +57,8 @@ function mapUser(raw: Record<string, unknown>): AuthUser {
   }
 }
 
-async function resolveAccessToken(): Promise<string | null> {
-  const sessionResult = await authClient.getSession()
-  const sessionToken = readTokenFromSession(
-    sessionResult.data?.session as Record<string, unknown> | undefined,
-  )
-
+async function fetchAuthToken(signInData?: Record<string, unknown>): Promise<string | null> {
+  const sessionToken = readTokenFromSession(signInData?.session as Record<string, unknown> | undefined)
   if (sessionToken) {
     return sessionToken
   }
@@ -56,98 +71,121 @@ async function resolveAccessToken(): Promise<string | null> {
     }
   }
 
-  return getStoredToken()
+  const sessionResult = await authClient.getSession()
+  return readTokenFromSession(sessionResult.data?.session as Record<string, unknown> | undefined)
 }
 
-async function syncAuthState(): Promise<{ user: AuthUser | null; token: string | null }> {
-  const sessionResult = await authClient.getSession()
-  const sessionUser = sessionResult.data?.user as Record<string, unknown> | undefined
+async function establishSessionFromSignIn(
+  signInData?: Record<string, unknown>,
+): Promise<{ user: AuthUser; token: string }> {
+  const token = await withTimeout(
+    fetchAuthToken(signInData),
+    AUTH_REQUEST_TIMEOUT_MS,
+    'Auth token request',
+  )
 
-  if (!sessionUser) {
-    setStoredToken(null)
-    return { user: null, token: null }
+  if (!token || !isUsableToken(token)) {
+    throw new Error('Signed in, but no valid access token was returned.')
   }
 
-  const token = await resolveAccessToken()
-  if (!token || isTokenExpired(token)) {
-    setStoredToken(null)
-    return { user: null, token: null }
-  }
-
-  const userIdFromToken = extractUserIdFromToken(token)
-  const user = mapUser(sessionUser)
-
-  if (userIdFromToken && userIdFromToken !== user.id) {
-    console.warn('JWT subject does not match session user id; using session user id.')
+  const sessionUser = signInData?.user as Record<string, unknown> | undefined
+  const user = sessionUser ? mapUser(sessionUser) : userFromToken(token)
+  if (!user) {
+    throw new Error('Signed in, but user details could not be resolved from the token.')
   }
 
   setStoredToken(token)
   return { user, token }
 }
 
+function restoreSessionFromStorage(): { user: AuthUser; token: string } | null {
+  const storedToken = getStoredToken()
+  if (!isUsableToken(storedToken)) {
+    setStoredToken(null)
+    return null
+  }
+
+  const user = userFromToken(storedToken)
+  if (!user) {
+    setStoredToken(null)
+    return null
+  }
+
+  return { user, token: storedToken }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null)
-  const [token, setToken] = useState<string | null>(() => getStoredToken())
-  const [isLoading, setIsLoading] = useState(true)
+  const initialSession = restoreSessionFromStorage()
+  const [user, setUser] = useState<AuthUser | null>(initialSession?.user ?? null)
+  const [token, setToken] = useState<string | null>(initialSession?.token ?? null)
+  const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
-    if (!isAuthConfigured) {
-      setIsLoading(false)
-      return
-    }
-
-    let cancelled = false
-
-    void syncAuthState()
-      .then((state) => {
-        if (cancelled) return
-        setUser(state.user)
-        setToken(state.token)
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoading(false)
-      })
-
-    return () => {
-      cancelled = true
-    }
+    const session = restoreSessionFromStorage()
+    setUser(session?.user ?? null)
+    setToken(session?.token ?? null)
   }, [])
 
   const login = useCallback(async (email: string, password: string) => {
-    const result = await authClient.signIn.email({ email, password })
-    if (result.error) {
-      throw new Error(result.error.message ?? 'Sign in failed')
+    if (!isAuthConfigured) {
+      throw new Error('Authentication is not configured.')
     }
 
-    const state = await syncAuthState()
-    if (!state.user || !state.token) {
-      throw new Error('Signed in, but no active session was returned.')
-    }
+    setIsLoading(true)
+    try {
+      const result = await withTimeout(
+        authClient.signIn.email({ email, password }),
+        AUTH_REQUEST_TIMEOUT_MS,
+        'Sign in',
+      )
+      if (result.error) {
+        throw new Error(result.error.message ?? 'Sign in failed')
+      }
 
-    setUser(state.user)
-    setToken(state.token)
+      const state = await establishSessionFromSignIn(result.data as Record<string, unknown> | undefined)
+      setUser(state.user)
+      setToken(state.token)
+    } finally {
+      setIsLoading(false)
+    }
   }, [])
 
   const register = useCallback(async (name: string, email: string, password: string) => {
-    const result = await authClient.signUp.email({ name, email, password })
-    if (result.error) {
-      throw new Error(result.error.message ?? 'Sign up failed')
+    if (!isAuthConfigured) {
+      throw new Error('Authentication is not configured.')
     }
 
-    const state = await syncAuthState()
-    if (!state.user || !state.token) {
-      throw new Error('Account created, but no active session was returned. Check email verification settings.')
-    }
+    setIsLoading(true)
+    try {
+      const result = await withTimeout(
+        authClient.signUp.email({ name, email, password }),
+        AUTH_REQUEST_TIMEOUT_MS,
+        'Sign up',
+      )
+      if (result.error) {
+        throw new Error(result.error.message ?? 'Sign up failed')
+      }
 
-    setUser(state.user)
-    setToken(state.token)
+      const state = await establishSessionFromSignIn(result.data as Record<string, unknown> | undefined)
+      setUser(state.user)
+      setToken(state.token)
+    } finally {
+      setIsLoading(false)
+    }
   }, [])
 
   const logout = useCallback(async () => {
-    await authClient.signOut()
-    setStoredToken(null)
-    setUser(null)
-    setToken(null)
+    setIsLoading(true)
+    try {
+      await withTimeout(authClient.signOut(), AUTH_REQUEST_TIMEOUT_MS, 'Sign out')
+    } catch (error: unknown) {
+      console.warn('Sign out request failed; clearing local session anyway.', error)
+    } finally {
+      setStoredToken(null)
+      setUser(null)
+      setToken(null)
+      setIsLoading(false)
+    }
   }, [])
 
   const value = useMemo<AuthContextValue>(
