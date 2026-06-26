@@ -10,7 +10,8 @@ A legacy **Streamlit** UI and Word document generator remain in the repo for ref
 
 | What | URL |
 |------|-----|
-| **Web app (open this in the browser)** | http://career-app-frontend.s3-website-us-east-1.amazonaws.com |
+| **Web app (HTTPS — use this)** | https://d1op72z71x0vy8.cloudfront.net |
+| **Web app (legacy HTTP)** | http://career-app-frontend.s3-website-us-east-1.amazonaws.com |
 | **API base** | https://uhyi1tayu5.execute-api.us-east-1.amazonaws.com/api/v1 |
 | **Health check** | https://uhyi1tayu5.execute-api.us-east-1.amazonaws.com/api/v1/health |
 

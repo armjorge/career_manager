@@ -7,11 +7,13 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { authClient, isAuthConfigured } from '@/auth/client'
+import { signInViaApi, signUpViaApi } from '@/api/auth.api'
+import { isMockMode } from '@/api/client'
+import { authClient, getJwtToken, isAuthConfigured } from '@/auth/client'
 import {
+  extractTokenFromAuthData,
   getStoredToken,
   isUsableToken,
-  readTokenFromSession,
   setStoredToken,
   userFromToken,
 } from '@/auth/tokenStorage'
@@ -21,14 +23,13 @@ interface AuthContextValue {
   user: AuthUser | null
   token: string | null
   isAuthenticated: boolean
-  isLoading: boolean
   login: (email: string, password: string) => Promise<void>
   register: (name: string, email: string, password: string) => Promise<void>
   logout: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
-const AUTH_REQUEST_TIMEOUT_MS = 10_000
+const AUTH_REQUEST_TIMEOUT_MS = 15_000
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -58,21 +59,32 @@ function mapUser(raw: Record<string, unknown>): AuthUser {
 }
 
 async function fetchAuthToken(signInData?: Record<string, unknown>): Promise<string | null> {
-  const sessionToken = readTokenFromSession(signInData?.session as Record<string, unknown> | undefined)
-  if (sessionToken) {
-    return sessionToken
+  const fromSignIn = extractTokenFromAuthData(signInData)
+  if (fromSignIn && isUsableToken(fromSignIn)) {
+    return fromSignIn
+  }
+
+  const sessionResult = await authClient.getSession()
+  const session = sessionResult.data?.session as Record<string, unknown> | undefined
+  const fromSession = extractTokenFromAuthData({ session })
+  if (fromSession && isUsableToken(fromSession)) {
+    return fromSession
   }
 
   if ('token' in authClient && typeof authClient.token === 'function') {
     const tokenResult = await authClient.token()
     const jwtToken = tokenResult.data?.token
-    if (typeof jwtToken === 'string' && jwtToken.length > 0) {
+    if (typeof jwtToken === 'string' && jwtToken.length > 0 && isUsableToken(jwtToken)) {
       return jwtToken
     }
   }
 
-  const sessionResult = await authClient.getSession()
-  return readTokenFromSession(sessionResult.data?.session as Record<string, unknown> | undefined)
+  const jwt = await getJwtToken()
+  if (jwt && isUsableToken(jwt)) {
+    return jwt
+  }
+
+  return null
 }
 
 async function establishSessionFromSignIn(
@@ -98,6 +110,14 @@ async function establishSessionFromSignIn(
   return { user, token }
 }
 
+function applyAuthSession(user: AuthUser, token: string) {
+  if (!isUsableToken(token)) {
+    throw new Error('Signed in, but no valid access token was returned.')
+  }
+  setStoredToken(token)
+  return { user, token }
+}
+
 function restoreSessionFromStorage(): { user: AuthUser; token: string } | null {
   const storedToken = getStoredToken()
   if (!isUsableToken(storedToken)) {
@@ -118,7 +138,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const initialSession = restoreSessionFromStorage()
   const [user, setUser] = useState<AuthUser | null>(initialSession?.user ?? null)
   const [token, setToken] = useState<string | null>(initialSession?.token ?? null)
-  const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
     const session = restoreSessionFromStorage()
@@ -131,8 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error('Authentication is not configured.')
     }
 
-    setIsLoading(true)
-    try {
+    if (isMockMode) {
       const result = await withTimeout(
         authClient.signIn.email({ email, password }),
         AUTH_REQUEST_TIMEOUT_MS,
@@ -145,9 +163,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const state = await establishSessionFromSignIn(result.data as Record<string, unknown> | undefined)
       setUser(state.user)
       setToken(state.token)
-    } finally {
-      setIsLoading(false)
+      return
     }
+
+    const data = await withTimeout(signInViaApi(email, password), AUTH_REQUEST_TIMEOUT_MS, 'Sign in')
+    const state = applyAuthSession(data.user, data.token)
+    setUser(state.user)
+    setToken(state.token)
   }, [])
 
   const register = useCallback(async (name: string, email: string, password: string) => {
@@ -155,8 +177,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error('Authentication is not configured.')
     }
 
-    setIsLoading(true)
-    try {
+    if (isMockMode) {
       const result = await withTimeout(
         authClient.signUp.email({ name, email, password }),
         AUTH_REQUEST_TIMEOUT_MS,
@@ -169,13 +190,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const state = await establishSessionFromSignIn(result.data as Record<string, unknown> | undefined)
       setUser(state.user)
       setToken(state.token)
-    } finally {
-      setIsLoading(false)
+      return
     }
+
+    const data = await withTimeout(
+      signUpViaApi(name, email, password),
+      AUTH_REQUEST_TIMEOUT_MS,
+      'Sign up',
+    )
+    const state = applyAuthSession(data.user, data.token)
+    setUser(state.user)
+    setToken(state.token)
   }, [])
 
   const logout = useCallback(async () => {
-    setIsLoading(true)
     try {
       await withTimeout(authClient.signOut(), AUTH_REQUEST_TIMEOUT_MS, 'Sign out')
     } catch (error: unknown) {
@@ -184,7 +212,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setStoredToken(null)
       setUser(null)
       setToken(null)
-      setIsLoading(false)
     }
   }, [])
 
@@ -193,12 +220,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       token,
       isAuthenticated: Boolean(user && token),
-      isLoading,
       login,
       register,
       logout,
     }),
-    [user, token, isLoading, login, register, logout],
+    [user, token, login, register, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -1,4 +1,4 @@
-import { createAuthClient } from '@neondatabase/neon-js/auth'
+import { createInternalNeonAuth } from '@neondatabase/neon-js/auth'
 
 const authUrl = import.meta.env.VITE_NEON_AUTH_URL?.trim()
 
@@ -8,6 +8,12 @@ if (!authUrl) {
   )
 }
 
-export const authClient = createAuthClient(authUrl ?? 'http://localhost:0/auth')
+const neonAuth = createInternalNeonAuth(authUrl ?? 'http://localhost:0/auth', {
+  fetchOptions: {
+    credentials: 'include',
+  },
+})
 
+export const authClient = neonAuth.adapter
+export const getJwtToken = neonAuth.getJWTToken
 export const isAuthConfigured = Boolean(authUrl)

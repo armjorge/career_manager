@@ -1,6 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { Loader2 } from 'lucide-react'
 import { AuthProvider, useAuth } from '@/context/AuthContext'
 import { AppShell } from '@/layouts/AppShell'
 import { Auth } from '@/pages/Auth'
@@ -19,18 +18,7 @@ const queryClient = new QueryClient({
 })
 
 function AuthGate() {
-  const { isAuthenticated, isLoading } = useAuth()
-
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="flex items-center gap-3 text-sm text-muted">
-          <Loader2 className="h-5 w-5 animate-spin text-primary" />
-          Signing in...
-        </div>
-      </div>
-    )
-  }
+  const { isAuthenticated } = useAuth()
 
   if (!isAuthenticated) {
     return <Auth />

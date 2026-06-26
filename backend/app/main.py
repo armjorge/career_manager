@@ -6,7 +6,7 @@ from mangum import Mangum
 
 from backend.app.config import get_settings
 from backend.app.database import check_db_connection
-from backend.app.routers import applications, companies
+from backend.app.routers import applications, auth, companies
 
 
 def create_app() -> FastAPI:
@@ -45,6 +45,7 @@ def create_app() -> FastAPI:
         check_db_connection()
         return {"status": "healthy", "database": "connected"}
 
+    app.include_router(auth.router, prefix=settings.api_prefix)
     app.include_router(companies.router, prefix=settings.api_prefix)
     app.include_router(applications.router, prefix=settings.api_prefix)
 

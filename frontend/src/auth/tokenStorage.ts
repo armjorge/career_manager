@@ -59,9 +59,24 @@ export function isUsableToken(token: string | null | undefined): token is string
 
   const payload = decodeJwtPayload(token)
   if (!payload?.sub) return false
-  if (typeof payload.exp !== 'number') return false
+  if (typeof payload.exp !== 'number') return true
 
   return payload.exp * 1000 > Date.now()
+}
+
+export function extractTokenFromAuthData(
+  data: Record<string, unknown> | null | undefined,
+): string | null {
+  if (!data) return null
+
+  for (const key of ['token', 'accessToken', 'access_token', 'jwt']) {
+    const value = data[key]
+    if (typeof value === 'string' && value.length > 0) {
+      return value
+    }
+  }
+
+  return readTokenFromSession(data.session as Record<string, unknown> | undefined)
 }
 
 export function userFromToken(token: string): AuthUser | null {
