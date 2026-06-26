@@ -186,3 +186,30 @@
 	CREATE TRIGGER trg_after_application_insert 
 		AFTER INSERT ON consulting_tracker.fact_application 
 		FOR EACH ROW EXECUTE FUNCTION consulting_tracker.sync_fact_to_tracker();
+
+-- ==========================================
+-- 6. INDEXES (Multi-tenant access patterns)
+-- ==========================================
+
+-- 1. dim_company: per-user listing + join from fact_application via ctype_id
+CREATE INDEX idx_dim_company_user_id ON consulting_tracker.dim_company (user_id, company_id);
+CREATE INDEX idx_dim_company_ctype_id ON consulting_tracker.dim_company (ctype_id);
+
+-- 2. dim_ctype: supports FK lookups from dim_company.ctype_id -> dim_ctype.ctype_id
+--    (user_id, type_name) already covered by uq_type_name_lower_per_user; ctype_id is PK already indexed.
+
+-- 3. dim_file: per-user listing scoped by file_type, and join via lang_id
+CREATE INDEX idx_dim_file_user_id_type ON consulting_tracker.dim_file (user_id, file_type);
+CREATE INDEX idx_dim_file_lang_id ON consulting_tracker.dim_file (lang_id);
+
+-- 4. dim_job_category: supports FK lookups from fact_application.job_cat_id
+--    (user_id, category_name) already covered by uq_job_cat_lower_per_user; job_cat_id is PK already indexed.
+
+-- 5. dim_language: supports FK lookups from dim_file.lang_id and fact_application.lang_id
+--    (user_id, language) already covered by uq_dim_language_lower_per_user; lang_id is PK already indexed.
+
+-- 6. fact_application: the hot table — per-user listing, status filtering, and all 3 FK joins
+CREATE INDEX idx_fact_application_user_id_status ON consulting_tracker.fact_application (user_id, status);
+CREATE INDEX idx_fact_application_company_id ON consulting_tracker.fact_application (company_id);
+CREATE INDEX idx_fact_application_job_cat_id ON consulting_tracker.fact_application (job_cat_id);
+CREATE INDEX idx_fact_application_lang_id ON consulting_tracker.fact_application (lang_id);
