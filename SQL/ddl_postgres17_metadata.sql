@@ -56,17 +56,17 @@ COMMENT ON COLUMN consulting_tracker.fact_application.job_cat_id IS 'Unique iden
 COMMENT ON COLUMN consulting_tracker.fact_application.created_at IS 'Timestamp indicating when the record was created. [Time Dimension]';
 
 -- -------------------------------------------------------------
--- Entity: fact_job
+-- Entity: fact_pdf_generator
 -- -------------------------------------------------------------
 COMMENT ON TABLE consulting_tracker.fact_pdf_generator IS 'Transaction table tracking the status and output of automated document generation jobs.';
 COMMENT ON COLUMN consulting_tracker.fact_pdf_generator.pdf_id IS 'Unique identifier for a specific execution job, such as PDF generation. [Dimension/PK]';
 COMMENT ON COLUMN consulting_tracker.fact_pdf_generator.application_id IS 'Unique identifier for the job application process. [Dimension/PK]';
-COMMENT ON COLUMN consulting_tracker.fact_pdf_generator.active_status IS 'Boolean flag indicating if the record is currently active or valid. [Fact]';
 COMMENT ON COLUMN consulting_tracker.fact_pdf_generator.file_hash IS 'Unique MD5/SHA hash of the file content for deduplication. [Dimension]';
 COMMENT ON COLUMN consulting_tracker.fact_pdf_generator.file_name IS 'The original name of the file on disk. [Filtered Name]';
 COMMENT ON COLUMN consulting_tracker.fact_pdf_generator.output_file IS 'Path or name of the generated output document. [Dimension]';
-COMMENT ON COLUMN consulting_tracker.fact_pdf_generator.job_status IS 'Outcome of the job execution (success/failure). [Fact]';
+COMMENT ON COLUMN consulting_tracker.fact_pdf_generator.pdf_success IS 'Outcome of the job execution (success/failure). [Fact]';
 COMMENT ON COLUMN consulting_tracker.fact_pdf_generator.created_at IS 'Timestamp indicating when the record was created. [Time Dimension]';
+
 
 -- -------------------------------------------------------------
 -- Entity: dim_resume_details
@@ -104,3 +104,12 @@ COMMENT ON COLUMN consulting_tracker.dim_tracker.position_url IS 'URL link to th
 COMMENT ON COLUMN consulting_tracker.dim_tracker.resume IS 'Path or reference to the generated resume file. [Dimension]';
 COMMENT ON COLUMN consulting_tracker.dim_tracker.cover_letter IS 'Path or reference to the generated cover letter file. [Dimension]';
 COMMENT ON COLUMN consulting_tracker.dim_tracker.position_pdf IS 'Path or reference to the original job description PDF. [Dimension]';
+
+-- -------------------------------------------------------------
+-- Entity: fact_web_list
+-- -------------------------------------------------------------
+COMMENT ON TABLE consulting_tracker.fact_web_list IS 'Repository table storing a list of relevant websites and job boards for tracking and quick access.';
+COMMENT ON COLUMN consulting_tracker.fact_web_list.site_id IS 'Unique identifier for the website record. [Dimension/PK]';
+COMMENT ON COLUMN consulting_tracker.fact_web_list.address IS 'The web address or URL of the target site. [Filtered Name]';
+COMMENT ON COLUMN consulting_tracker.fact_web_list.created_at IS 'Timestamp indicating when the record was created. [Time Dimension]';
+COMMENT ON COLUMN consulting_tracker.fact_web_list.last_modification IS 'Timestamp indicating when the record was last modified. [Time Dimension]';
