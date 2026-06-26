@@ -16,12 +16,14 @@ import {
   useJobCategories,
   useResolveCategory,
   useResolveLanguage,
+  useTrackers,
   useUpdateApplication,
+  useUpdateTracker,
 } from '@/hooks/useApplications'
 import { useCompanies, useLanguages } from '@/hooks/useCompanies'
 import { useUiStore } from '@/stores/uiStore'
-import { applicationSchema, type ApplicationFormValues } from '@/validators/schemas'
-import type { ApplicationWithDetails } from '@/types'
+import { applicationSchema, trackerSchema, type ApplicationFormValues, type TrackerFormValues } from '@/validators/schemas'
+import type { ApplicationWithDetails, TrackerWithDetails } from '@/types'
 
 const ADD_NEW = '__add_new__'
 
@@ -359,21 +361,182 @@ function Milestone1Form() {
   )
 }
 
-function Milestone2Placeholder() {
+function trackerLabel(row: TrackerWithDetails) {
+  return `${row.jobName} | ${row.companyName} | ${new Date(row.createdAt).toLocaleDateString()}`
+}
+
+function Milestone2Form() {
+  const { data: trackers = [], isLoading } = useTrackers()
+  const updateTracker = useUpdateTracker()
+  const { selectedApplicationId, setSelectedApplicationId } = useUiStore()
+  const [feedback, setFeedback] = useState<{ variant: 'success' | 'error'; message: string } | null>(
+    null,
+  )
+
+  const selectedTracker = useMemo(
+    () => trackers.find((row) => row.applicationId === selectedApplicationId) ?? null,
+    [trackers, selectedApplicationId],
+  )
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<TrackerFormValues>({
+    resolver: zodResolver(trackerSchema),
+    defaultValues: {
+      contactName: '',
+      contactEmail: '',
+      positionUrl: '',
+    },
+  })
+
+  useEffect(() => {
+    if (!selectedTracker) {
+      reset({ contactName: '', contactEmail: '', positionUrl: '' })
+      return
+    }
+
+    reset({
+      contactName: selectedTracker.contactName ?? '',
+      contactEmail: selectedTracker.contactEmail ?? '',
+      positionUrl: selectedTracker.positionUrl ?? '',
+    })
+  }, [selectedTracker, reset])
+
+  const onSubmit = handleSubmit(async (values) => {
+    if (!selectedApplicationId) {
+      setFeedback({ variant: 'error', message: 'Select an application to update tracking.' })
+      return
+    }
+
+    setFeedback(null)
+    try {
+      await updateTracker.mutateAsync({
+        applicationId: selectedApplicationId,
+        contactName: values.contactName?.trim() || null,
+        contactEmail: values.contactEmail?.trim() || null,
+        positionUrl: values.positionUrl?.trim() || null,
+      })
+      setFeedback({ variant: 'success', message: 'Tracking details saved successfully.' })
+    } catch (error) {
+      const message =
+        error instanceof ApiClientError ? error.message : 'Could not save tracking details.'
+      setFeedback({ variant: 'error', message })
+    }
+  })
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Tracking Details (Milestone 2)</CardTitle>
-        <CardDescription>
-          Contact name, email, and position URL editing will land in Sprint 2. The mock API already
-          provisions tracker rows when applications are created.
-        </CardDescription>
-      </CardHeader>
-      <Alert
-        variant="info"
-        message="Select an application in Milestone 1, then continue here once the tracking form is wired."
+    <div className="space-y-6">
+      <DataTable
+        isLoading={isLoading}
+        data={trackers}
+        emptyMessage="No tracking records yet. Create an application in Milestone 1 first."
+        columns={[
+          { key: 'companyName', header: 'Company' },
+          { key: 'jobName', header: 'Position' },
+          { key: 'language', header: 'Language', render: (row) => row.language ?? '—' },
+          { key: 'status', header: 'Status' },
+          { key: 'categoryName', header: 'Category', render: (row) => row.categoryName ?? '—' },
+          { key: 'contactName', header: 'Contact', render: (row) => row.contactName ?? '—' },
+          { key: 'contactEmail', header: 'Email', render: (row) => row.contactEmail ?? '—' },
+          {
+            key: 'positionUrl',
+            header: 'Position URL',
+            render: (row) =>
+              row.positionUrl ? (
+                <a
+                  href={row.positionUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  Link
+                </a>
+              ) : (
+                '—'
+              ),
+          },
+        ]}
       />
-    </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Update Tracking Details</CardTitle>
+          <CardDescription>
+            Milestone 2 — contact person and job posting URL for each application.
+          </CardDescription>
+        </CardHeader>
+
+        <div className="mb-5">
+          <Field>
+            <Label htmlFor="tracker-select">Application</Label>
+            <Select
+              id="tracker-select"
+              value={selectedApplicationId ?? ''}
+              onChange={(event) => {
+                const value = event.target.value
+                setSelectedApplicationId(value ? Number(value) : null)
+              }}
+            >
+              <option value="">Select an application...</option>
+              {trackers.map((row) => (
+                <option key={row.applicationId} value={row.applicationId}>
+                  {trackerLabel(row)}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </div>
+
+        <form className="grid gap-5 md:grid-cols-2" onSubmit={onSubmit}>
+          <Field>
+            <Label htmlFor="contactName">Contact name</Label>
+            <Input
+              id="contactName"
+              placeholder="e.g. Jane Recruiter"
+              {...register('contactName')}
+              error={errors.contactName?.message}
+            />
+          </Field>
+
+          <Field>
+            <Label htmlFor="contactEmail">Contact email</Label>
+            <Input
+              id="contactEmail"
+              type="email"
+              placeholder="recruiter@company.com"
+              {...register('contactEmail')}
+              error={errors.contactEmail?.message}
+            />
+          </Field>
+
+          <Field className="md:col-span-2">
+            <Label htmlFor="positionUrl">Position URL</Label>
+            <Input
+              id="positionUrl"
+              type="url"
+              placeholder="https://company.com/jobs/..."
+              {...register('positionUrl')}
+              error={errors.positionUrl?.message}
+            />
+          </Field>
+
+          {feedback ? (
+            <div className="md:col-span-2">
+              <Alert variant={feedback.variant} message={feedback.message} />
+            </div>
+          ) : null}
+
+          <div className="md:col-span-2">
+            <Button type="submit" disabled={updateTracker.isPending || !selectedApplicationId}>
+              {updateTracker.isPending ? 'Saving...' : 'Save Tracking Details (Milestone 2)'}
+            </Button>
+          </div>
+        </form>
+      </Card>
+    </div>
   )
 }
 
@@ -420,7 +583,7 @@ export function ApplicationsPage() {
         </button>
       </div>
 
-      {activeTab === 'm1' ? <Milestone1Form /> : <Milestone2Placeholder />}
+      {activeTab === 'm1' ? <Milestone1Form /> : <Milestone2Form />}
     </div>
   )
 }

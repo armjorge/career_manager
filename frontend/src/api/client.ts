@@ -22,10 +22,23 @@ type RequestOptions = Omit<RequestInit, 'body'> & {
 
 async function parseError(response: Response): Promise<ApiError> {
   try {
-    return (await response.json()) as ApiError
+    const body = (await response.json()) as Record<string, unknown>
+    if (typeof body.message === 'string') {
+      return { message: body.message, code: typeof body.code === 'string' ? body.code : undefined }
+    }
+    if (typeof body.detail === 'string') {
+      return { message: body.detail }
+    }
+    if (Array.isArray(body.detail)) {
+      const first = body.detail[0] as { msg?: string } | undefined
+      if (first?.msg) {
+        return { message: first.msg, code: 'VALIDATION_ERROR' }
+      }
+    }
   } catch {
     return { message: response.statusText || 'Request failed' }
   }
+  return { message: response.statusText || 'Request failed' }
 }
 
 export async function apiClient<T>(

@@ -6,6 +6,7 @@ import type { CreateApplicationPayload, UpdateApplicationPayload } from '@/types
 export const applicationKeys = {
   all: ['applications'] as const,
   categories: ['job-categories'] as const,
+  trackers: ['trackers'] as const,
 }
 
 export function useApplications() {
@@ -28,6 +29,7 @@ export function useCreateApplication() {
     mutationFn: (payload: CreateApplicationPayload) => applicationsApi.create(payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: applicationKeys.all })
+      void queryClient.invalidateQueries({ queryKey: applicationKeys.trackers })
     },
   })
 }
@@ -58,6 +60,23 @@ export function useResolveCategory() {
     mutationFn: applicationsApi.getOrCreateCategory,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: applicationKeys.categories })
+    },
+  })
+}
+
+export function useTrackers() {
+  return useQuery({
+    queryKey: applicationKeys.trackers,
+    queryFn: applicationsApi.listTrackers,
+  })
+}
+
+export function useUpdateTracker() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: applicationsApi.updateTracker,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: applicationKeys.trackers })
     },
   })
 }

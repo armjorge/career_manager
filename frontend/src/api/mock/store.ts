@@ -10,7 +10,9 @@ import type {
   Language,
   ResumeDetails,
   TrackerDetails,
+  TrackerWithDetails,
   UpdateApplicationPayload,
+  UpdateTrackerPayload,
   Website,
 } from '@/types'
 import { ApiClientError } from '@/api/client'
@@ -182,6 +184,23 @@ function hydrateApplication(app: Application): ApplicationWithDetails {
   }
 }
 
+function hydrateTracker(tracker: TrackerDetails): TrackerWithDetails {
+  const app = store.applications.find((item) => item.applicationId === tracker.applicationId)
+  if (!app) {
+    throw new ApiClientError('Application not found for tracker row.', 404)
+  }
+  const hydrated = hydrateApplication(app)
+  return {
+    ...tracker,
+    jobName: hydrated.jobName,
+    companyName: hydrated.companyName,
+    language: hydrated.language,
+    status: hydrated.status,
+    categoryName: hydrated.categoryName,
+    createdAt: hydrated.createdAt,
+  }
+}
+
 function provisionApplicationChildren(applicationId: number) {
   store.trackers.push({
     applicationId,
@@ -333,6 +352,29 @@ export const mockDb = {
     }
     store.applications[index] = updated
     return hydrateApplication(updated)
+  },
+
+  async listTrackers(): Promise<TrackerWithDetails[]> {
+    await delay()
+    return [...store.trackers]
+      .map(hydrateTracker)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  },
+
+  async updateTracker(payload: UpdateTrackerPayload): Promise<TrackerWithDetails> {
+    await delay()
+    const index = store.trackers.findIndex((item) => item.applicationId === payload.applicationId)
+    if (index === -1) {
+      throw new ApiClientError('Tracking record not found.', 404)
+    }
+    const updated: TrackerDetails = {
+      applicationId: payload.applicationId,
+      contactName: payload.contactName?.trim() || null,
+      contactEmail: payload.contactEmail?.trim() || null,
+      positionUrl: payload.positionUrl?.trim() || null,
+    }
+    store.trackers[index] = updated
+    return hydrateTracker(updated)
   },
 
   async listWebsites(): Promise<Website[]> {

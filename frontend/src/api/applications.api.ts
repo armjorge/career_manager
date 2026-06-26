@@ -5,7 +5,9 @@ import type {
   CreateApplicationPayload,
   JobCategory,
   Language,
+  TrackerWithDetails,
   UpdateApplicationPayload,
+  UpdateTrackerPayload,
 } from '@/types'
 
 export const applicationsApi = {
@@ -39,5 +41,20 @@ export const applicationsApi = {
       : apiClient<JobCategory>('/job-categories/resolve', {
           method: 'POST',
           body: { categoryName: name },
+        }),
+
+  listTrackers: (): Promise<TrackerWithDetails[]> =>
+    isMockMode ? mockDb.listTrackers() : apiClient<TrackerWithDetails[]>('/trackers'),
+
+  updateTracker: (payload: UpdateTrackerPayload): Promise<TrackerWithDetails> =>
+    isMockMode
+      ? mockDb.updateTracker(payload)
+      : apiClient<TrackerWithDetails>(`/trackers/${payload.applicationId}`, {
+          method: 'PUT',
+          body: {
+            contactName: payload.contactName,
+            contactEmail: payload.contactEmail,
+            positionUrl: payload.positionUrl,
+          },
         }),
 }

@@ -13,6 +13,8 @@ from backend.app.schemas import (
     JobCategoryOut,
     LanguageCreate,
     LanguageOut,
+    TrackerOut,
+    TrackerUpdate,
 )
 
 router = APIRouter(tags=["applications"])
@@ -41,6 +43,44 @@ def _application_select() -> str:
             ON jc.job_cat_id = fa.job_cat_id AND jc.user_id = fa.user_id
         WHERE fa.user_id = %s
     """
+
+
+def _optional_text(value: str | None) -> str | None:
+    if value is None:
+        return None
+    stripped = value.strip()
+    return stripped or None
+
+
+def _tracker_select() -> str:
+    s = schema()
+    return f"""
+        SELECT
+            dt.application_id,
+            dt.contact_name,
+            dt.contact_email,
+            dt.position_url,
+            fa.job_name,
+            c.company_name,
+            l.language,
+            fa.status,
+            jc.category_name,
+            fa.created_at
+        FROM {s}.dim_tracker dt
+        JOIN {s}.fact_application fa
+            ON fa.application_id = dt.application_id AND fa.user_id = dt.user_id
+        JOIN {s}.dim_company c
+            ON c.company_id = fa.company_id AND c.user_id = fa.user_id
+        LEFT JOIN {s}.dim_language l
+            ON l.lang_id = fa.lang_id AND l.user_id = fa.user_id
+        LEFT JOIN {s}.dim_job_category jc
+            ON jc.job_cat_id = fa.job_cat_id AND jc.user_id = fa.user_id
+        WHERE fa.user_id = %s
+    """
+
+
+def _row_to_tracker(row: dict) -> TrackerOut:
+    return TrackerOut.model_validate(row)
 
 
 def _row_to_application(row: dict) -> ApplicationOut:
@@ -293,3 +333,101 @@ def resolve_language(
             (str(user_id), name),
         )
         return LanguageOut.model_validate(cur.fetchone())
+
+
+@router.get("/trackers", response_model=list[TrackerOut])
+def list_trackers(user_id: UUID = Depends(get_current_user_id)) -> list[TrackerOut]:
+    with db_cursor() as cur:
+        cur.execute(f"{_tracker_select()} ORDER BY fa.created_at DESC", (str(user_id),))
+        return [_row_to_tracker(row) for row in cur.fetchall()]
+
+
+@router.put("/trackers/{application_id}", response_model=TrackerOut)
+def update_tracker(
+    application_id: int,
+    payload: TrackerUpdate,
+    user_id: UUID = Depends(get_current_user_id),
+) -> TrackerOut:
+    with db_cursor() as cur:
+        cur.execute(
+            f"""
+            UPDATE {schema()}.dim_tracker
+            SET contact_name = %s,
+                contact_email = %s,
+                position_url = %s
+            WHERE user_id = %s AND application_id = %s
+            """,
+            (
+                _optional_text(payload.contact_name),
+                _optional_text(payload.contact_email),
+                _optional_text(payload.position_url),
+                str(user_id),
+                application_id,
+            ),
+        )
+        if cur.rowcount == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"message": "Tracking record not found", "code": "NOT_FOUND"},
+            )
+
+        cur.execute(
+            f"{_tracker_select()} AND dt.application_id = %s",
+            (str(user_id), application_id),
+        )
+        row = cur.fetchone()
+        if row is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail={"message": "Failed to load updated tracking record"},
+            )
+        return _row_to_tracker(row)
+
+
+@router.get("/trackers", response_model=list[TrackerOut])
+def list_trackers(user_id: UUID = Depends(get_current_user_id)) -> list[TrackerOut]:
+    with db_cursor() as cur:
+        cur.execute(f"{_tracker_select()} ORDER BY fa.created_at DESC", (str(user_id),))
+        return [_row_to_tracker(row) for row in cur.fetchall()]
+
+
+@router.put("/trackers/{application_id}", response_model=TrackerOut)
+def update_tracker(
+    application_id: int,
+    payload: TrackerUpdate,
+    user_id: UUID = Depends(get_current_user_id),
+) -> TrackerOut:
+    with db_cursor() as cur:
+        cur.execute(
+            f"""
+            UPDATE {schema()}.dim_tracker
+            SET contact_name = %s,
+                contact_email = %s,
+                position_url = %s
+            WHERE user_id = %s AND application_id = %s
+            """,
+            (
+                _optional_text(payload.contact_name),
+                _optional_text(payload.contact_email),
+                _optional_text(payload.position_url),
+                str(user_id),
+                application_id,
+            ),
+        )
+        if cur.rowcount == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"message": "Tracking record not found", "code": "NOT_FOUND"},
+            )
+
+        cur.execute(
+            f"{_tracker_select()} AND dt.application_id = %s",
+            (str(user_id), application_id),
+        )
+        row = cur.fetchone()
+        if row is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail={"message": "Failed to load updated tracking record"},
+            )
+        return _row_to_tracker(row)

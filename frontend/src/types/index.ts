@@ -50,6 +50,22 @@ export interface TrackerDetails {
   positionUrl: string | null
 }
 
+export interface TrackerWithDetails extends TrackerDetails {
+  jobName: string
+  companyName: string
+  language: string | null
+  status: ApplicationStatus
+  categoryName: string | null
+  createdAt: string
+}
+
+export interface UpdateTrackerPayload {
+  applicationId: number
+  contactName: string | null
+  contactEmail: string | null
+  positionUrl: string | null
+}
+
 export interface ResumeDetails {
   applicationId: number
   ed1: string | null
