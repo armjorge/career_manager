@@ -214,3 +214,7 @@ __marimo__/
 frontend/node_modules/
 frontend/dist/
 frontend/.env
+
+# AWS Lambda package artifacts
+lambda.zip
+.lambda-package/

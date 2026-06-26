@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from mangum import Mangum
 
 from backend.app.config import get_settings
 from backend.app.database import check_db_connection
@@ -35,14 +36,14 @@ def create_app() -> FastAPI:
             content={"message": "Invalid request payload", "code": "VALIDATION_ERROR"},
         )
 
-    @app.get("/health")
-    def health() -> dict[str, str]:
-        return {"status": "ok"}
+    @app.get(f"{settings.api_prefix}/health")
+    def health_check() -> dict[str, str]:
+        return {"status": "healthy"}
 
-    @app.get("/health/db")
+    @app.get(f"{settings.api_prefix}/health/db")
     def health_db() -> dict[str, str]:
         check_db_connection()
-        return {"status": "ok", "database": "connected"}
+        return {"status": "healthy", "database": "connected"}
 
     app.include_router(companies.router, prefix=settings.api_prefix)
     app.include_router(applications.router, prefix=settings.api_prefix)
@@ -51,3 +52,10 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
+
+# AWS Lambda entry point — set handler to: backend.app.main.handler
+handler = Mangum(
+    app,
+    lifespan="off",
+    api_gateway_base_path=get_settings().api_gateway_base_path,
+)
