@@ -6,6 +6,7 @@ import { Auth } from '@/pages/Auth'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { CompaniesPage } from '@/pages/companies/CompaniesPage'
 import { ApplicationsPage } from '@/pages/applications/ApplicationsPage'
+import { AnalyticsPage } from '@/pages/AnalyticsPage'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
 
 const queryClient = new QueryClient({
@@ -57,15 +58,7 @@ function AuthGate() {
             />
           }
         />
-        <Route
-          path="analytics"
-          element={
-            <PlaceholderPage
-              title="Analytics"
-              description="Pipeline metrics, monthly trends, and strategic insights."
-            />
-          }
-        />
+        <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

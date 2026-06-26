@@ -1,4 +1,5 @@
 import type {
+  AnalyticsSummary,
   Application,
   ApplicationWithDetails,
   Company,
@@ -14,6 +15,8 @@ import type {
   UpdateApplicationPayload,
   UpdateTrackerPayload,
   Website,
+  LabelCount,
+  MonthlyActivity,
 } from '@/types'
 import { ApiClientError } from '@/api/client'
 
@@ -201,6 +204,55 @@ function hydrateTracker(tracker: TrackerDetails): TrackerWithDetails {
   }
 }
 
+function yearMonth(iso: string): string {
+  const date = new Date(iso)
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+  return `${date.getUTCFullYear()}-${month}`
+}
+
+function countBy<T>(items: T[], getKey: (item: T) => string): LabelCount[] {
+  const totals = new Map<string, number>()
+  for (const item of items) {
+    const key = getKey(item)
+    totals.set(key, (totals.get(key) ?? 0) + 1)
+  }
+  return [...totals.entries()]
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+}
+
+function buildMonthlyActivity(): MonthlyActivity[] {
+  const months = new Map<string, MonthlyActivity>()
+
+  const ensureMonth = (month: string) => {
+    if (!months.has(month)) {
+      months.set(month, { yearMonth: month, apps: 0, resumes: 0, coverLetters: 0 })
+    }
+    return months.get(month)!
+  }
+
+  for (const app of store.applications) {
+    const month = yearMonth(app.createdAt)
+    ensureMonth(month).apps += 1
+  }
+
+  for (const resume of store.resumeDetails) {
+    if (!resume.fileId) continue
+    const app = store.applications.find((item) => item.applicationId === resume.applicationId)
+    if (!app) continue
+    ensureMonth(yearMonth(app.createdAt)).resumes += 1
+  }
+
+  for (const letter of store.coverLetters) {
+    if (!letter.fileId) continue
+    const app = store.applications.find((item) => item.applicationId === letter.applicationId)
+    if (!app) continue
+    ensureMonth(yearMonth(app.createdAt)).coverLetters += 1
+  }
+
+  return [...months.values()].sort((a, b) => a.yearMonth.localeCompare(b.yearMonth))
+}
+
 function provisionApplicationChildren(applicationId: number) {
   store.trackers.push({
     applicationId,
@@ -380,6 +432,42 @@ export const mockDb = {
   async listWebsites(): Promise<Website[]> {
     await delay()
     return [...store.websites].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  },
+
+  async getAnalyticsSummary(): Promise<AnalyticsSummary> {
+    await delay()
+    const monthlyActivity = buildMonthlyActivity()
+    const totalApplications = monthlyActivity.reduce((sum, row) => sum + row.apps, 0)
+    const readyResumes = monthlyActivity.reduce((sum, row) => sum + row.resumes, 0)
+    const readyCoverLetters = monthlyActivity.reduce((sum, row) => sum + row.coverLetters, 0)
+    const cvPrepRate =
+      totalApplications > 0 ? Math.round((readyResumes / totalApplications) * 1000) / 10 : 0
+
+    const applications = store.applications.map(hydrateApplication)
+
+    return {
+      metrics: {
+        totalApplications,
+        readyResumes,
+        readyCoverLetters,
+        cvPrepRate,
+      },
+      monthlyActivity,
+      statusDistribution: countBy(applications, (app) => app.status),
+      languageDistribution: countBy(
+        applications.filter((app) => app.language),
+        (app) => app.language ?? 'Unknown',
+      ),
+      categoryDistribution: countBy(
+        applications,
+        (app) => app.categoryName ?? 'Uncategorized',
+      ),
+      industryDistribution: countBy(applications, (app) => {
+        const company = store.companies.find((item) => item.companyId === app.companyId)
+        const industry = store.companyTypes.find((item) => item.ctypeId === company?.ctypeId)
+        return industry?.typeName ?? 'Other/Unknown'
+      }),
+    }
   },
 }
 

@@ -139,3 +139,31 @@ export interface ApiError {
   message: string
   code?: string
 }
+
+export interface AnalyticsMetrics {
+  totalApplications: number
+  readyResumes: number
+  readyCoverLetters: number
+  cvPrepRate: number
+}
+
+export interface MonthlyActivity {
+  yearMonth: string
+  apps: number
+  resumes: number
+  coverLetters: number
+}
+
+export interface LabelCount {
+  name: string
+  count: number
+}
+
+export interface AnalyticsSummary {
+  metrics: AnalyticsMetrics
+  monthlyActivity: MonthlyActivity[]
+  statusDistribution: LabelCount[]
+  languageDistribution: LabelCount[]
+  categoryDistribution: LabelCount[]
+  industryDistribution: LabelCount[]
+}

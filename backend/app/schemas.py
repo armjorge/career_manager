@@ -108,3 +108,31 @@ class TrackerUpdate(ApiModel):
     contact_name: str | None = None
     contact_email: str | None = None
     position_url: str | None = None
+
+
+class AnalyticsMetrics(ApiModel):
+    total_applications: int
+    ready_resumes: int
+    ready_cover_letters: int
+    cv_prep_rate: float
+
+
+class MonthlyActivity(ApiModel):
+    year_month: str
+    apps: int
+    resumes: int
+    cover_letters: int
+
+
+class LabelCount(ApiModel):
+    name: str
+    count: int
+
+
+class AnalyticsSummary(ApiModel):
+    metrics: AnalyticsMetrics
+    monthly_activity: list[MonthlyActivity]
+    status_distribution: list[LabelCount]
+    language_distribution: list[LabelCount]
+    category_distribution: list[LabelCount]
+    industry_distribution: list[LabelCount]

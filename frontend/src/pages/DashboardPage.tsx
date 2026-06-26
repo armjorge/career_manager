@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, Building2, FileText, FolderOpen, Globe, Rocket } from 'lucide-react'
+import { ArrowRight, BarChart3, Building2, FileText, FolderOpen, Globe, Rocket } from 'lucide-react'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { isMockMode } from '@/api/client'
 
@@ -33,6 +33,12 @@ const sections = [
     title: 'Web Pages',
     description: 'Maintain your job search website bookmarks.',
     icon: Globe,
+  },
+  {
+    to: '/analytics',
+    title: 'Analytics',
+    description: 'Pipeline metrics, monthly trends, and strategic insights.',
+    icon: BarChart3,
   },
 ]
 
