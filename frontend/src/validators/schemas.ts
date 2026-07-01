@@ -19,6 +19,7 @@ export const applicationSchema = z.object({
   status: z.enum(['open', 'closed']),
   langId: z.number().int().positive().nullable(),
   jobCatId: z.number().int().positive().nullable(),
+  siteId: z.number().int().positive().nullable(),
   newLanguage: z.string().optional(),
   newCategory: z.string().optional(),
 })

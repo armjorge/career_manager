@@ -78,6 +78,7 @@ function createInitialStore(): MockStore {
         langId: 1,
         status: 'open',
         jobCatId: 1,
+        siteId: null,
         createdAt: now(),
       },
       {
@@ -87,6 +88,7 @@ function createInitialStore(): MockStore {
         langId: 1,
         status: 'open',
         jobCatId: 2,
+        siteId: null,
         createdAt: now(),
       },
     ],
@@ -219,6 +221,7 @@ function hydrateApplication(app: Application): ApplicationWithDetails {
     companyName: company?.companyName ?? 'Unknown',
     language,
     categoryName,
+    siteAddress: null,
   }
 }
 
@@ -485,6 +488,7 @@ export const mockDb = {
       langId: payload.langId,
       status: payload.status,
       jobCatId: payload.jobCatId,
+      siteId: payload.siteId,
       createdAt: store.applications[index].createdAt,
     }
     store.applications[index] = updated

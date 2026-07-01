@@ -21,6 +21,7 @@ import {
   useUpdateTracker,
 } from '@/hooks/useApplications'
 import { useCompanies, useLanguages } from '@/hooks/useCompanies'
+import { useSites } from '@/hooks/useSites'
 import { useUiStore } from '@/stores/uiStore'
 import { applicationSchema, trackerSchema, type ApplicationFormValues, type TrackerFormValues } from '@/validators/schemas'
 import type { ApplicationWithDetails, TrackerWithDetails } from '@/types'
@@ -36,6 +37,7 @@ function Milestone1Form() {
   const { data: companies = [] } = useCompanies()
   const { data: languages = [] } = useLanguages()
   const { data: categories = [] } = useJobCategories()
+  const { data: sites = [] } = useSites()
   const createApplication = useCreateApplication()
   const updateApplication = useUpdateApplication()
   const resolveLanguage = useResolveLanguage()
@@ -65,6 +67,7 @@ function Milestone1Form() {
       status: 'open',
       langId: null,
       jobCatId: null,
+      siteId: null,
       newLanguage: '',
       newCategory: '',
     },
@@ -78,6 +81,7 @@ function Milestone1Form() {
         status: 'open',
         langId: languages[0]?.langId ?? null,
         jobCatId: categories[0]?.jobCatId ?? null,
+        siteId: null,
         newLanguage: '',
         newCategory: '',
       })
@@ -95,6 +99,7 @@ function Milestone1Form() {
       status: selectedApp.status,
       langId: selectedApp.langId,
       jobCatId: selectedApp.jobCatId,
+      siteId: selectedApp.siteId,
       newLanguage: '',
       newCategory: '',
     })
@@ -136,6 +141,7 @@ function Milestone1Form() {
         status: values.status,
         langId,
         jobCatId,
+        siteId: values.siteId,
       })
 
       setSelectedApplicationId(created.applicationId)
@@ -186,6 +192,7 @@ function Milestone1Form() {
         status: values.status,
         langId,
         jobCatId,
+        siteId: values.siteId,
       })
 
       setFeedback({ variant: 'success', message: 'Application updated successfully.' })
@@ -213,6 +220,24 @@ function Milestone1Form() {
           { key: 'language', header: 'Language', render: (row) => row.language ?? '—' },
           { key: 'status', header: 'Status' },
           { key: 'categoryName', header: 'Category', render: (row) => row.categoryName ?? '—' },
+          {
+            key: 'siteAddress',
+            header: 'Site',
+            render: (row) =>
+              row.siteAddress ? (
+                <a
+                  href={row.siteAddress}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="max-w-[180px] truncate block text-primary hover:underline"
+                  title={row.siteAddress}
+                >
+                  {row.siteAddress}
+                </a>
+              ) : (
+                '—'
+              ),
+          },
           {
             key: 'createdAt',
             header: 'Created',
@@ -340,6 +365,21 @@ function Milestone1Form() {
               <Input id="newCategory" placeholder="e.g. Data Analyst" {...register('newCategory')} />
             </Field>
           ) : null}
+
+          <Field className="md:col-span-2">
+            <Label htmlFor="siteId">Job site (optional)</Label>
+            <Select
+              id="siteId"
+              {...register('siteId', { setValueAs: (v) => (v === '' ? null : Number(v)) })}
+            >
+              <option value="">— No site linked —</option>
+              {sites.map((site) => (
+                <option key={site.siteId} value={site.siteId}>
+                  {site.address}
+                </option>
+              ))}
+            </Select>
+          </Field>
 
           {feedback ? (
             <div className="md:col-span-2">

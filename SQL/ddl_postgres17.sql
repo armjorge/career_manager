@@ -110,25 +110,7 @@ CREATE TABLE IF NOT EXISTS consulting_tracker.dim_file (
 
 
 
--- 2.6 APPLICATIONS (core fact — scoped per user)
-CREATE TABLE IF NOT EXISTS consulting_tracker.fact_application (
-	user_id uuid NOT NULL,
-	application_id int4 DEFAULT nextval('consulting_tracker.seq_fact_application'::regclass) NOT NULL,
-	company_id int4 NULL,
-	job_name varchar(255) NOT NULL,
-	lang_id int4 NULL,
-	status varchar(20) NOT NULL,
-	job_cat_id int4 NULL,
-	created_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
-	CONSTRAINT fact_application_pkey PRIMARY KEY (application_id),
-	CONSTRAINT fact_app_user_id FOREIGN KEY (user_id) REFERENCES neon_auth."user" (id) ON DELETE CASCADE,
-	CONSTRAINT fact_application_status_check CHECK (((status)::text = ANY (ARRAY[('closed'::character varying)::text, ('open'::character varying)::text]))),
-	CONSTRAINT fact_application_company_id_fkey FOREIGN KEY (company_id) REFERENCES consulting_tracker.dim_company(company_id),
-	CONSTRAINT fact_application_dim_job_category_fk FOREIGN KEY (job_cat_id) REFERENCES consulting_tracker.dim_job_category(job_cat_id) ON DELETE SET NULL ON UPDATE CASCADE,
-	CONSTRAINT fact_application_lang_id_fkey FOREIGN KEY (lang_id) REFERENCES consulting_tracker.dim_language(lang_id)
-);
-
--- 2.7 WEB LIST (scoped per user)
+-- 2.6 WEB LIST (scoped per user — must precede fact_application for FK reference)
 CREATE TABLE IF NOT EXISTS consulting_tracker.fact_web_list (
 	user_id uuid NOT NULL,
 	site_id int4 DEFAULT nextval('consulting_tracker.seq_web_list'::regclass) NOT NULL,
@@ -138,6 +120,45 @@ CREATE TABLE IF NOT EXISTS consulting_tracker.fact_web_list (
 	CONSTRAINT fact_web_list_pkey PRIMARY KEY (site_id),
 	CONSTRAINT fact_web_user_id FOREIGN KEY (user_id) REFERENCES neon_auth."user" (id) ON DELETE CASCADE
 );
+
+-- 2.7 APPLICATIONS (core fact — scoped per user)
+CREATE TABLE IF NOT EXISTS consulting_tracker.fact_application (
+	user_id uuid NOT NULL,
+	application_id int4 DEFAULT nextval('consulting_tracker.seq_fact_application'::regclass) NOT NULL,
+	company_id int4 NULL,
+	job_name varchar(255) NOT NULL,
+	lang_id int4 NULL,
+	status varchar(20) NOT NULL,
+	job_cat_id int4 NULL,
+	site_id int4 NULL,
+	created_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	CONSTRAINT fact_application_pkey PRIMARY KEY (application_id),
+	CONSTRAINT fact_app_user_id FOREIGN KEY (user_id) REFERENCES neon_auth."user" (id) ON DELETE CASCADE,
+	CONSTRAINT fact_application_status_check CHECK (((status)::text = ANY (ARRAY[('closed'::character varying)::text, ('open'::character varying)::text]))),
+	CONSTRAINT fact_application_company_id_fkey FOREIGN KEY (company_id) REFERENCES consulting_tracker.dim_company(company_id),
+	CONSTRAINT fact_application_dim_job_category_fk FOREIGN KEY (job_cat_id) REFERENCES consulting_tracker.dim_job_category(job_cat_id) ON DELETE SET NULL ON UPDATE CASCADE,
+	CONSTRAINT fact_application_lang_id_fkey FOREIGN KEY (lang_id) REFERENCES consulting_tracker.dim_language(lang_id),
+	CONSTRAINT fact_application_site_id_fkey FOREIGN KEY (site_id) REFERENCES consulting_tracker.fact_web_list(site_id) ON DELETE SET NULL
+);
+
+-- Backfill: add site_id to existing fact_application tables
+ALTER TABLE consulting_tracker.fact_application
+    ADD COLUMN IF NOT EXISTS site_id int4 NULL;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_schema = 'consulting_tracker'
+          AND table_name = 'fact_application'
+          AND constraint_name = 'fact_application_site_id_fkey'
+    ) THEN
+        ALTER TABLE consulting_tracker.fact_application
+            ADD CONSTRAINT fact_application_site_id_fkey
+            FOREIGN KEY (site_id) REFERENCES consulting_tracker.fact_web_list(site_id)
+            ON DELETE SET NULL;
+    END IF;
+END $$;
 
 
 -- 2.8 TRACKER (1:1 per application — contact + sent-file paths)
@@ -236,37 +257,40 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_dim_language_lower_per_user ON consulting_t
 CREATE UNIQUE INDEX IF NOT EXISTS uq_dim_file_hash_per_user ON consulting_tracker.dim_file (user_id, file_hash);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_fact_web_list_per_user ON consulting_tracker.fact_web_list (user_id, lower((address)::text));
 -- dim_company
-CREATE INDEX IF NOT EXISTSidx_dim_company_user_id ON consulting_tracker.dim_company (user_id, company_id);
-CREATE INDEX IF NOT EXISTSidx_dim_company_ctype_id ON consulting_tracker.dim_company (ctype_id);
+CREATE INDEX IF NOT EXISTS idx_dim_company_user_id ON consulting_tracker.dim_company (user_id, company_id);
+CREATE INDEX IF NOT EXISTS idx_dim_company_ctype_id ON consulting_tracker.dim_company (ctype_id);
 
 -- dim_file
-CREATE INDEX IF NOT EXISTSidx_dim_file_user_id_type ON consulting_tracker.dim_file (user_id, file_type);
-CREATE INDEX IF NOT EXISTSidx_dim_file_lang_id ON consulting_tracker.dim_file (lang_id);
+CREATE INDEX IF NOT EXISTS idx_dim_file_user_id_type ON consulting_tracker.dim_file (user_id, file_type);
+CREATE INDEX IF NOT EXISTS idx_dim_file_lang_id ON consulting_tracker.dim_file (lang_id);
 
 -- fact_application
-CREATE INDEX IF NOT EXISTSidx_fact_application_user_id_status ON consulting_tracker.fact_application (user_id, status);
-CREATE INDEX IF NOT EXISTSidx_fact_application_company_id ON consulting_tracker.fact_application (company_id);
-CREATE INDEX IF NOT EXISTSidx_fact_application_job_cat_id ON consulting_tracker.fact_application (job_cat_id);
-CREATE INDEX IF NOT EXISTSidx_fact_application_lang_id ON consulting_tracker.fact_application (lang_id);
+CREATE INDEX IF NOT EXISTS idx_fact_application_user_id_status ON consulting_tracker.fact_application (user_id, status);
+CREATE INDEX IF NOT EXISTS idx_fact_application_company_id ON consulting_tracker.fact_application (company_id);
+CREATE INDEX IF NOT EXISTS idx_fact_application_job_cat_id ON consulting_tracker.fact_application (job_cat_id);
+CREATE INDEX IF NOT EXISTS idx_fact_application_lang_id ON consulting_tracker.fact_application (lang_id);
 
 -- dim_tracker
-CREATE INDEX IF NOT EXISTSidx_dim_tracker_user_id ON consulting_tracker.dim_tracker (user_id, application_id);
+CREATE INDEX IF NOT EXISTS idx_dim_tracker_user_id ON consulting_tracker.dim_tracker (user_id, application_id);
 
 -- dim_resume_details / dim_cover_letter (Letters & CV + analytics)
-CREATE INDEX IF NOT EXISTSidx_dim_resume_details_user_id ON consulting_tracker.dim_resume_details (user_id, application_id);
-CREATE INDEX IF NOT EXISTSidx_dim_cover_letter_user_id ON consulting_tracker.dim_cover_letter (user_id, application_id);
+CREATE INDEX IF NOT EXISTS idx_dim_resume_details_user_id ON consulting_tracker.dim_resume_details (user_id, application_id);
+CREATE INDEX IF NOT EXISTS idx_dim_cover_letter_user_id ON consulting_tracker.dim_cover_letter (user_id, application_id);
 
 -- fact_pdf_generator (Generator page history)
-CREATE INDEX IF NOT EXISTSidx_fact_pdf_generator_user_created ON consulting_tracker.fact_pdf_generator (user_id, created_at DESC);
-CREATE INDEX IF NOT EXISTSidx_fact_pdf_generator_application ON consulting_tracker.fact_pdf_generator (user_id, application_id);
+CREATE INDEX IF NOT EXISTS idx_fact_pdf_generator_user_created ON consulting_tracker.fact_pdf_generator (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_fact_pdf_generator_application ON consulting_tracker.fact_pdf_generator (user_id, application_id);
+
+-- fact_application → fact_web_list
+CREATE INDEX IF NOT EXISTS idx_fact_application_site_id ON consulting_tracker.fact_application (site_id);
 
 
 -- One row per (application, type) — enforces the 3-slot model
-CREATE UNIQUE INDEX IF NOT EXISTS IF NOT EXISTS uq_dim_attachment_app_type
+CREATE UNIQUE INDEX IF NOT EXISTS uq_dim_attachment_app_type
     ON consulting_tracker.dim_attachment (application_id, attachment_type);
 
 -- Fast lookup by user + application
-CREATE INDEX IF NOT EXISTSIF NOT EXISTS idx_dim_attachment_user_app
+CREATE INDEX IF NOT EXISTS idx_dim_attachment_user_app
     ON consulting_tracker.dim_attachment (user_id, application_id);
 
 
@@ -335,3 +359,26 @@ DROP TRIGGER IF EXISTS trg_after_application_insert ON consulting_tracker.fact_a
 CREATE TRIGGER trg_after_application_insert
 	AFTER INSERT ON consulting_tracker.fact_application
 	FOR EACH ROW EXECUTE FUNCTION consulting_tracker.sync_fact_to_tracker();
+
+-- ==========================================
+-- 7. VIEWS
+-- ==========================================
+
+-- vw_web_list: fact_web_list with application usage counts, ordered by created_at DESC
+CREATE OR REPLACE VIEW consulting_tracker.vw_web_list AS
+SELECT
+    fwl.site_id,
+    fwl.user_id,
+    fwl.address,
+    fwl.created_at,
+    fwl.last_modification,
+    COUNT(fa.application_id) AS application_count
+FROM consulting_tracker.fact_web_list fwl
+LEFT JOIN consulting_tracker.fact_application fa
+    ON fa.site_id = fwl.site_id AND fa.user_id = fwl.user_id
+GROUP BY
+    fwl.site_id,
+    fwl.user_id,
+    fwl.address,
+    fwl.created_at,
+    fwl.last_modification;
