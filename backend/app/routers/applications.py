@@ -30,10 +30,12 @@ def _application_select() -> str:
             fa.lang_id,
             fa.status,
             fa.job_cat_id,
+            fa.site_id,
             fa.created_at,
             c.company_name,
             l.language,
-            jc.category_name
+            jc.category_name,
+            fwl.address AS site_address
         FROM {s}.fact_application fa
         JOIN {s}.dim_company c
             ON c.company_id = fa.company_id AND c.user_id = fa.user_id
@@ -41,6 +43,8 @@ def _application_select() -> str:
             ON l.lang_id = fa.lang_id AND l.user_id = fa.user_id
         LEFT JOIN {s}.dim_job_category jc
             ON jc.job_cat_id = fa.job_cat_id AND jc.user_id = fa.user_id
+        LEFT JOIN {s}.fact_web_list fwl
+            ON fwl.site_id = fa.site_id AND fwl.user_id = fa.user_id
         WHERE fa.user_id = %s
     """
 
@@ -99,6 +103,20 @@ def _ensure_company_owned(cur: RealDictCursor, user_id: UUID, company_id: int) -
         )
 
 
+def _ensure_site_owned(cur: RealDictCursor, user_id: UUID, site_id: int | None) -> None:
+    if site_id is None:
+        return
+    cur.execute(
+        f"SELECT 1 FROM {schema()}.fact_web_list WHERE user_id = %s AND site_id = %s",
+        (str(user_id), site_id),
+    )
+    if cur.fetchone() is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"message": "Site not found for this user", "code": "NOT_FOUND"},
+        )
+
+
 def _ensure_optional_fk_owned(
     cur: RealDictCursor,
     user_id: UUID,
@@ -138,12 +156,13 @@ def create_application(
         _ensure_optional_fk_owned(
             cur, user_id, "dim_job_category", "job_cat_id", payload.job_cat_id, "Job category"
         )
+        _ensure_site_owned(cur, user_id, payload.site_id)
 
         cur.execute(
             f"""
             INSERT INTO {schema()}.fact_application
-                (user_id, company_id, job_name, lang_id, status, job_cat_id)
-            VALUES (%s, %s, %s, %s, %s, %s)
+                (user_id, company_id, job_name, lang_id, status, job_cat_id, site_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
             RETURNING application_id
             """,
             (
@@ -153,6 +172,7 @@ def create_application(
                 payload.lang_id,
                 payload.status,
                 payload.job_cat_id,
+                payload.site_id,
             ),
         )
         application_id = cur.fetchone()["application_id"]
@@ -195,6 +215,7 @@ def update_application(
         _ensure_optional_fk_owned(
             cur, user_id, "dim_job_category", "job_cat_id", payload.job_cat_id, "Job category"
         )
+        _ensure_site_owned(cur, user_id, payload.site_id)
 
         cur.execute(
             f"""
@@ -203,7 +224,8 @@ def update_application(
                 job_name = %s,
                 lang_id = %s,
                 status = %s,
-                job_cat_id = %s
+                job_cat_id = %s,
+                site_id = %s
             WHERE user_id = %s AND application_id = %s
             """,
             (
@@ -212,6 +234,7 @@ def update_application(
                 payload.lang_id,
                 payload.status,
                 payload.job_cat_id,
+                payload.site_id,
                 str(user_id),
                 application_id,
             ),

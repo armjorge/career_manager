@@ -10,7 +10,7 @@ import { AnalyticsPage } from '@/pages/AnalyticsPage'
 import { DocumentsPage } from '@/pages/documents/DocumentsPage'
 import { GeneratorPage } from '@/pages/documents/GeneratorPage'
 import { AttachmentsPage } from '@/pages/documents/AttachmentsPage'
-import { PlaceholderPage } from '@/pages/PlaceholderPage'
+import { SitesPage } from '@/pages/sites/SitesPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -37,15 +37,7 @@ function AuthGate() {
         <Route path="documents" element={<DocumentsPage />} />
         <Route path="generator" element={<GeneratorPage />} />
         <Route path="attachments" element={<AttachmentsPage />} />
-        <Route
-          path="sites"
-          element={
-            <PlaceholderPage
-              title="Website Repository"
-              description="Manage job search bookmarks and application portals."
-            />
-          }
-        />
+        <Route path="sites" element={<SitesPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

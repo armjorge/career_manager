@@ -20,14 +20,32 @@ export const applicationsApi = {
   create: (payload: CreateApplicationPayload): Promise<ApplicationWithDetails> =>
     isMockMode
       ? mockDb.createApplication(payload)
-      : apiClient<ApplicationWithDetails>('/applications', { method: 'POST', body: payload }),
+      : apiClient<ApplicationWithDetails>('/applications', {
+          method: 'POST',
+          body: {
+            companyId: payload.companyId,
+            jobName: payload.jobName,
+            langId: payload.langId,
+            status: payload.status,
+            jobCatId: payload.jobCatId,
+            siteId: payload.siteId,
+          },
+        }),
 
   update: (payload: UpdateApplicationPayload): Promise<ApplicationWithDetails> =>
     isMockMode
       ? mockDb.updateApplication(payload)
       : apiClient<ApplicationWithDetails>(`/applications/${payload.applicationId}`, {
           method: 'PUT',
-          body: payload,
+          body: {
+            applicationId: payload.applicationId,
+            companyId: payload.companyId,
+            jobName: payload.jobName,
+            langId: payload.langId,
+            status: payload.status,
+            jobCatId: payload.jobCatId,
+            siteId: payload.siteId,
+          },
         }),
 
   getOrCreateLanguage: (name: string): Promise<Language> =>

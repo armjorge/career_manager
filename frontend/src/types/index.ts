@@ -34,6 +34,7 @@ export interface Application {
   langId: number | null
   status: ApplicationStatus
   jobCatId: number | null
+  siteId: number | null
   createdAt: string
 }
 
@@ -41,6 +42,7 @@ export interface ApplicationWithDetails extends Application {
   companyName: string
   language: string | null
   categoryName: string | null
+  siteAddress: string | null
 }
 
 export interface TrackerDetails {
@@ -204,6 +206,7 @@ export interface CreateApplicationPayload {
   langId: number | null
   status: ApplicationStatus
   jobCatId: number | null
+  siteId: number | null
 }
 
 export interface UpdateApplicationPayload extends CreateApplicationPayload {

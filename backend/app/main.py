@@ -6,7 +6,7 @@ from mangum import Mangum
 
 from backend.app.config import get_settings
 from backend.app.database import check_db_connection
-from backend.app.routers import analytics, applications, auth, companies, documents
+from backend.app.routers import analytics, applications, auth, companies, documents, sites
 
 
 def create_app() -> FastAPI:
@@ -50,6 +50,7 @@ def create_app() -> FastAPI:
     app.include_router(applications.router, prefix=settings.api_prefix)
     app.include_router(analytics.router, prefix=settings.api_prefix)
     app.include_router(documents.router, prefix=settings.api_prefix)
+    app.include_router(sites.router, prefix=settings.api_prefix)
 
     return app
 

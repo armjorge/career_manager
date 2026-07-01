@@ -73,10 +73,12 @@ class ApplicationOut(ApiModel):
     lang_id: int | None
     status: Literal["open", "closed"]
     job_cat_id: int | None
+    site_id: int | None = None
     created_at: datetime
     company_name: str
     language: str | None = None
     category_name: str | None = None
+    site_address: str | None = None
 
 
 class ApplicationCreate(ApiModel):
@@ -85,10 +87,23 @@ class ApplicationCreate(ApiModel):
     lang_id: int | None = None
     status: Literal["open", "closed"]
     job_cat_id: int | None = None
+    site_id: int | None = None
 
 
 class ApplicationUpdate(ApplicationCreate):
     application_id: int
+
+
+class WebsiteOut(ApiModel):
+    site_id: int
+    address: str
+    created_at: datetime
+    last_modification: datetime | None = None
+    application_count: int = 0
+
+
+class WebsiteCreate(ApiModel):
+    address: str = Field(min_length=1)
 
 
 class TrackerOut(ApiModel):
