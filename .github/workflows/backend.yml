@@ -1,0 +1,47 @@
+name: Backend CI/CD
+
+on:
+  push:
+    branches:
+      - develop
+  pull_request:
+    branches:
+      - develop
+  # Only trigger if files in the backend folder change
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install OS Dependencies
+        # Ensure zip is installed for your shell script
+        run: sudo apt-get update && sudo apt-get install -y zip
+
+      - name: Build Lambda Package (Quality Check)
+        run: |
+          chmod +x ./backend/build-lambda.sh
+          PYTHON=python3.12 ./backend/build-lambda.sh
+
+      - name: Configure AWS Credentials
+        # ONLY run this step if the event is a merge/push, NOT a pull request
+        if: github.event_name == 'push'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Deploy to Lambda
+        if: github.event_name == 'push'
+        # Adjust the function name if you have a specific dev lambda (e.g., career-api-backend-dev)
+        run: aws lambda update-function-code --function-name career-api-backend --zip-file fileb://lambda.zip
