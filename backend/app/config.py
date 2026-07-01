@@ -20,7 +20,6 @@ class Settings(BaseSettings):
     api_gateway_base_path: str = Field(default="/", alias="API_GATEWAY_BASE_PATH")
     db_schema: str = "consulting_tracker"
     documents_s3_bucket: str = Field(default="career-app-documents", alias="DOCUMENTS_S3_BUCKET")
-    aws_region: str = Field(default="us-east-1", alias="AWS_REGION")
 
     model_config = SettingsConfigDict(
         env_file=(ROOT_DIR / ".env", ROOT_DIR / "frontend" / ".env"),

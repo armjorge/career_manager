@@ -252,36 +252,14 @@ END;
 $function$;
 
 -- ==========================================
--- 5. ROW LEVEL SECURITY (optional)
+-- 5. ROW LEVEL SECURITY — not used
 -- ==========================================
--- neon_auth."user" stores accounts; RLS helpers live in schema auth (pg_session_jwt).
--- Career Manager FastAPI already scopes every query by user_id — RLS is only needed
--- if you also expose tables via the Neon Data API.
+-- Multi-tenancy is enforced in FastAPI: every API query filters by user_id from the
+-- Neon Auth JWT (sub claim). User accounts live in neon_auth."user"; no separate
+-- auth schema or pg_session_jwt extension is required.
 --
--- This block is safe on greenfield installs: it skips RLS when auth.uid() is absent.
-
-DO $$
-BEGIN
-	BEGIN
-		CREATE EXTENSION IF NOT EXISTS pg_session_jwt;
-	EXCEPTION
-		WHEN OTHERS THEN
-			RAISE NOTICE 'pg_session_jwt not installed (%). RLS will be skipped.', SQLERRM;
-	END;
-
-	IF to_regprocedure('auth.uid()') IS NOT NULL THEN
-		ALTER TABLE consulting_tracker.fact_application ENABLE ROW LEVEL SECURITY;
-
-		DROP POLICY IF EXISTS user_isolation_policy ON consulting_tracker.fact_application;
-		CREATE POLICY user_isolation_policy ON consulting_tracker.fact_application
-			FOR ALL
-			USING (user_id = auth.uid());
-
-		RAISE NOTICE 'RLS enabled on fact_application (user_id = auth.uid()).';
-	ELSE
-		RAISE NOTICE 'auth.uid() not found — skipping RLS. FastAPI enforces user_id in API queries.';
-	END IF;
-END $$;
+-- RLS (auth.uid() policies) applies only to direct Neon Data API access. This app
+-- uses Lambda + FastAPI, so RLS is intentionally omitted here.
 
 -- ==========================================
 -- 6. TRIGGERS

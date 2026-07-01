@@ -35,7 +35,8 @@ class DocumentStorage:
     def __init__(self) -> None:
         settings = get_settings()
         self.bucket = settings.documents_s3_bucket
-        self.client = boto3.client("s3", region_name=settings.aws_region)
+        # boto3 reads AWS_REGION from the Lambda runtime environment automatically
+        self.client = boto3.client("s3")
 
     def upload_template(self, user_id: UUID, file_name: str, content: bytes) -> str:
         key = template_object_key(user_id, file_name)
