@@ -645,22 +645,73 @@ def generate_document(
 
 @router.get("/generations", response_model=list[GenerationLogOut])
 def list_generations(
-    limit: int = 10,
+    limit: int = 50,
     user_id: UUID = Depends(get_current_user_id),
 ) -> list[GenerationLogOut]:
-    safe_limit = max(1, min(limit, 50))
+    safe_limit = max(1, min(limit, 200))
+    s = schema()
     with db_cursor() as cur:
         cur.execute(
             f"""
-            SELECT pdf_id, application_id, file_hash, file_name, output_file, pdf_success, created_at
-            FROM {schema()}.fact_pdf_generator
-            WHERE user_id = %s
-            ORDER BY created_at DESC
+            SELECT
+                fpg.pdf_id,
+                fpg.application_id,
+                fpg.file_hash,
+                fpg.file_name,
+                fpg.output_file,
+                fpg.pdf_success,
+                fpg.created_at,
+                dc.company_name,
+                fa.job_name
+            FROM {s}.fact_pdf_generator fpg
+            LEFT JOIN {s}.fact_application fa
+                ON fa.application_id = fpg.application_id AND fa.user_id = fpg.user_id
+            LEFT JOIN {s}.dim_company dc
+                ON dc.company_id = fa.company_id AND dc.user_id = fpg.user_id
+            WHERE fpg.user_id = %s
+            ORDER BY fpg.created_at DESC
             LIMIT %s
             """,
             (str(user_id), safe_limit),
         )
         return [GenerationLogOut.model_validate(row) for row in cur.fetchall()]
+
+
+@router.delete("/generations/{pdf_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_generation(
+    pdf_id: int,
+    user_id: UUID = Depends(get_current_user_id),
+) -> None:
+    with db_cursor() as cur:
+        cur.execute(
+            f"""
+            SELECT output_file, pdf_success
+            FROM {schema()}.fact_pdf_generator
+            WHERE user_id = %s AND pdf_id = %s
+            """,
+            (str(user_id), pdf_id),
+        )
+        row = cur.fetchone()
+        if row is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"message": "Generation record not found", "code": "NOT_FOUND"},
+            )
+
+        cur.execute(
+            f"DELETE FROM {schema()}.fact_pdf_generator WHERE user_id = %s AND pdf_id = %s",
+            (str(user_id), pdf_id),
+        )
+
+    if row["pdf_success"]:
+        storage = get_document_storage()
+        try:
+            storage.client.delete_object(
+                Bucket=storage.bucket,
+                Key=generated_object_key(user_id, row["output_file"]),
+            )
+        except Exception:
+            pass
 
 
 @router.get("/generations/{pdf_id}/download", response_model=DownloadUrlOut)

@@ -119,3 +119,13 @@ export function useDownloadGeneration() {
     mutationFn: (pdfId: number) => documentsApi.getDownloadUrl(pdfId),
   })
 }
+
+export function useDeleteGeneration() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (pdfId: number) => documentsApi.deleteGeneration(pdfId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: documentKeys.generations })
+    },
+  })
+}

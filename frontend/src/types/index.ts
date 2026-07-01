@@ -147,6 +147,8 @@ export interface GenerationLog {
   outputFile: string
   pdfSuccess: boolean
   createdAt: string
+  companyName: string | null
+  jobName: string | null
 }
 
 export type DocumentCategory = 'Resume' | 'Cover Letter'

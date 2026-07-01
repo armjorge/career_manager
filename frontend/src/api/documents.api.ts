@@ -89,10 +89,15 @@ export const documentsApi = {
       ? mockDb.generateDocument(payload)
       : apiClient<GenerateDocumentResult>('/documents/generate', { method: 'POST', body: payload }),
 
-  listGenerations: (limit = 10): Promise<GenerationLog[]> =>
+  listGenerations: (limit = 50): Promise<GenerationLog[]> =>
     isMockMode
       ? mockDb.listGenerations(limit)
       : apiClient<GenerationLog[]>(`/documents/generations?limit=${limit}`),
+
+  deleteGeneration: (pdfId: number): Promise<void> =>
+    isMockMode
+      ? mockDb.deleteGeneration(pdfId)
+      : apiClient<void>(`/documents/generations/${pdfId}`, { method: 'DELETE' }),
 
   getDownloadUrl: (pdfId: number): Promise<DownloadUrlResult> =>
     isMockMode

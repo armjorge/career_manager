@@ -8,6 +8,7 @@ import { Field, Label } from '@/components/ui/Label'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import {
+  useDeleteGeneration,
   useDownloadGeneration,
   useGenerateDocument,
   useGenerationOptions,
@@ -28,13 +29,15 @@ function proposeFilename(prefix: string, option: GenerationOption) {
 
 export function GeneratorPage() {
   const { data: options = [], isLoading: optionsLoading } = useGenerationOptions()
-  const { data: generations = [], isLoading: historyLoading } = useGenerations(10)
+  const { data: generations = [], isLoading: historyLoading } = useGenerations(50)
   const generateDocument = useGenerateDocument()
   const downloadGeneration = useDownloadGeneration()
+  const deleteGeneration = useDeleteGeneration()
 
   const [category, setCategory] = useState<DocumentCategory>('Resume')
   const [selectedKey, setSelectedKey] = useState('')
   const [prefix, setPrefix] = useState('')
+  const [historyFilter, setHistoryFilter] = useState('')
   const [feedback, setFeedback] = useState<{ variant: 'success' | 'error'; message: string } | null>(null)
 
   const filteredOptions = useMemo(
@@ -48,6 +51,16 @@ export function GeneratorPage() {
   }, [filteredOptions, selectedKey])
 
   const proposedFilename = selectedOption ? proposeFilename(prefix, selectedOption) : null
+
+  const filteredGenerations = useMemo(() => {
+    const q = historyFilter.trim().toLowerCase()
+    if (!q) return generations
+    return generations.filter((row) =>
+      [row.companyName, row.jobName, row.outputFile]
+        .filter(Boolean)
+        .some((field) => field!.toLowerCase().includes(q)),
+    )
+  }, [generations, historyFilter])
 
   const onGenerate = async () => {
     if (!selectedOption) {
@@ -87,6 +100,17 @@ export function GeneratorPage() {
       window.open(result.downloadUrl, '_blank', 'noopener,noreferrer')
     } catch (error) {
       const message = error instanceof ApiClientError ? error.message : 'Download failed.'
+      setFeedback({ variant: 'error', message })
+    }
+  }
+
+  const onDelete = async (row: GenerationLog) => {
+    setFeedback(null)
+    try {
+      await deleteGeneration.mutateAsync(row.pdfId)
+      setFeedback({ variant: 'success', message: `Removed ${row.outputFile}` })
+    } catch (error) {
+      const message = error instanceof ApiClientError ? error.message : 'Failed to remove generation record.'
       setFeedback({ variant: 'error', message })
     }
   }
@@ -187,19 +211,33 @@ export function GeneratorPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Recent generations</CardTitle>
-          <CardDescription>Logged in fact_pdf_generator with download links from S3.</CardDescription>
+          <CardTitle>Generated documents</CardTitle>
+          <CardDescription>Logged in fact_pdf_generator. Download opens a pre-signed S3 link.</CardDescription>
         </CardHeader>
-        <div className="px-6 pb-6">
+        <div className="space-y-4 px-6 pb-6">
+          <Input
+            placeholder="Filter by company, job, or filename…"
+            value={historyFilter}
+            onChange={(e) => setHistoryFilter(e.target.value)}
+          />
           <DataTable<GenerationLog>
             isLoading={historyLoading}
-            emptyMessage="No documents generated yet."
+            emptyMessage={historyFilter ? 'No results match your filter.' : 'No documents generated yet.'}
             columns={[
-              { key: 'applicationId', header: 'App ID' },
+              {
+                key: 'companyName',
+                header: 'Company',
+                render: (row) => row.companyName ?? '—',
+              },
+              {
+                key: 'jobName',
+                header: 'Job',
+                render: (row) => row.jobName ?? '—',
+              },
               { key: 'outputFile', header: 'Output file' },
               {
                 key: 'pdfSuccess',
-                header: 'Success',
+                header: 'OK',
                 render: (row) => (row.pdfSuccess ? 'Yes' : 'No'),
               },
               {
@@ -210,15 +248,21 @@ export function GeneratorPage() {
               {
                 key: 'pdfId',
                 header: '',
-                render: (row) =>
-                  row.pdfSuccess ? (
-                    <Button type="button" size="sm" variant="secondary" onClick={() => void onDownload(row)}>
-                      Download
+                render: (row) => (
+                  <div className="flex gap-2">
+                    {row.pdfSuccess ? (
+                      <Button type="button" size="sm" variant="secondary" onClick={() => void onDownload(row)}>
+                        Download
+                      </Button>
+                    ) : null}
+                    <Button type="button" size="sm" variant="danger" onClick={() => void onDelete(row)}>
+                      Remove
                     </Button>
-                  ) : null,
+                  </div>
+                ),
               },
             ]}
-            data={generations}
+            data={filteredGenerations}
           />
         </div>
       </Card>

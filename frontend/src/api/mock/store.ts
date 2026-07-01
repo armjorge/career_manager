@@ -736,6 +736,8 @@ export const mockDb = {
       outputFile,
       pdfSuccess: true,
       createdAt: now(),
+      companyName: match.companyName,
+      jobName: match.jobName,
     }
     store.generationLogs.unshift(record)
 
@@ -762,6 +764,15 @@ export const mockDb = {
       downloadUrl: '#',
       fileName: record.outputFile,
     }
+  },
+
+  async deleteGeneration(pdfId: number): Promise<void> {
+    await delay()
+    const index = store.generationLogs.findIndex((item) => item.pdfId === pdfId)
+    if (index === -1) {
+      throw new ApiClientError('Generation record not found.', 404)
+    }
+    store.generationLogs.splice(index, 1)
   },
 }
 

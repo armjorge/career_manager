@@ -253,6 +253,8 @@ class GenerationLogOut(ApiModel):
     output_file: str
     pdf_success: bool
     created_at: datetime
+    company_name: str | None = None
+    job_name: str | None = None
 
 
 class DownloadUrlOut(ApiModel):
