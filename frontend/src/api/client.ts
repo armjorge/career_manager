@@ -70,3 +70,26 @@ export async function apiClient<T>(
 
   return (await response.json()) as T
 }
+
+export async function apiClientFormData<T>(path: string, formData: FormData, method = 'POST'): Promise<T> {
+  const token = getStoredToken()
+
+  const response = await fetch(`${baseUrl}${path}`, {
+    method,
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: formData,
+  })
+
+  if (!response.ok) {
+    const error = await parseError(response)
+    throw new ApiClientError(error.message, response.status, error.code)
+  }
+
+  if (response.status === 204) {
+    return undefined as T
+  }
+
+  return (await response.json()) as T
+}

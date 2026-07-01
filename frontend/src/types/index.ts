@@ -79,12 +79,53 @@ export interface ResumeDetails {
   fileId: number | null
 }
 
+export interface ResumeDetailsRow extends ResumeDetails {
+  companyName: string
+  jobName: string
+  language: string | null
+  status: ApplicationStatus
+  categoryName: string | null
+  fileName: string | null
+  createdAt: string
+}
+
+export interface UpdateResumeDetailsPayload {
+  applicationId: number
+  ed1?: string | null
+  ed2?: string | null
+  ed3?: string | null
+  ex1?: string | null
+  ex2?: string | null
+  ex3?: string | null
+  skills?: string | null
+  interests?: string | null
+  fileId?: number | null
+}
+
 export interface CoverLetter {
   applicationId: number
   header: string | null
   body: string | null
   close: string | null
   fileId: number | null
+}
+
+export interface CoverLetterRow extends CoverLetter {
+  companyName: string
+  jobName: string
+  language: string | null
+  status: ApplicationStatus
+  categoryName: string | null
+  fileName: string | null
+  createdAt: string
+}
+
+export interface UpdateCoverLetterPayload {
+  applicationId: number
+  header?: string | null
+  body?: string | null
+  close?: string | null
+  fileId?: number | null
 }
 
 export interface FileTemplate {
@@ -106,6 +147,48 @@ export interface GenerationLog {
   outputFile: string
   pdfSuccess: boolean
   createdAt: string
+  companyName: string | null
+  jobName: string | null
+}
+
+export type DocumentCategory = 'Resume' | 'Cover Letter'
+
+export interface GenerationOption {
+  applicationId: number
+  category: DocumentCategory
+  companyName: string
+  jobName: string
+  language: string | null
+  status: ApplicationStatus
+  categoryName: string | null
+  fileName: string | null
+  fileHash: string | null
+  fileType: FileType | null
+  createdAt: string
+}
+
+export interface GenerateDocumentPayload {
+  applicationId: number
+  category: DocumentCategory
+  prefix?: string | null
+}
+
+export interface GenerateDocumentResult {
+  pdfId: number
+  outputFile: string
+  pdfSuccess: boolean
+  downloadUrl: string | null
+}
+
+export interface DownloadUrlResult {
+  downloadUrl: string
+  fileName: string
+}
+
+export interface UpdateTemplatePayload {
+  fileId: number
+  fileType?: FileType
+  langId?: number | null
 }
 
 export interface Website {

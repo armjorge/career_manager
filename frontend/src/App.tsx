@@ -7,6 +7,8 @@ import { DashboardPage } from '@/pages/DashboardPage'
 import { CompaniesPage } from '@/pages/companies/CompaniesPage'
 import { ApplicationsPage } from '@/pages/applications/ApplicationsPage'
 import { AnalyticsPage } from '@/pages/AnalyticsPage'
+import { DocumentsPage } from '@/pages/documents/DocumentsPage'
+import { GeneratorPage } from '@/pages/documents/GeneratorPage'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
 
 const queryClient = new QueryClient({
@@ -31,24 +33,8 @@ function AuthGate() {
         <Route index element={<DashboardPage />} />
         <Route path="companies" element={<CompaniesPage />} />
         <Route path="applications" element={<ApplicationsPage />} />
-        <Route
-          path="documents"
-          element={
-            <PlaceholderPage
-              title="Letters & CV"
-              description="Resume details, cover letters, and template management."
-            />
-          }
-        />
-        <Route
-          path="generator"
-          element={
-            <PlaceholderPage
-              title="Document Generator"
-              description="Generate Word documents from templates and saved application content."
-            />
-          }
-        />
+        <Route path="documents" element={<DocumentsPage />} />
+        <Route path="generator" element={<GeneratorPage />} />
         <Route
           path="sites"
           element={
