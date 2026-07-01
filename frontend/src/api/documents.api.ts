@@ -1,6 +1,9 @@
 import { apiClient, apiClientFormData, isMockMode } from '@/api/client'
 import { mockDb } from '@/api/mock/store'
 import type {
+  Attachment,
+  AttachmentDownload,
+  AttachmentType,
   CoverLetterRow,
   DownloadUrlResult,
   FileTemplate,
@@ -103,4 +106,32 @@ export const documentsApi = {
     isMockMode
       ? mockDb.getDownloadUrl(pdfId)
       : apiClient<DownloadUrlResult>(`/documents/generations/${pdfId}/download`),
+
+  listAttachments: (applicationId: number): Promise<Attachment[]> =>
+    isMockMode
+      ? Promise.resolve([])
+      : apiClient<Attachment[]>(`/documents/attachments/${applicationId}`),
+
+  uploadAttachment: (applicationId: number, attachmentType: AttachmentType, file: File): Promise<Attachment> => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return isMockMode
+      ? Promise.resolve({} as Attachment)
+      : apiClientFormData<Attachment>(
+          `/documents/attachments/${applicationId}/${attachmentType}/upload`,
+          formData,
+        )
+  },
+
+  deleteAttachment: (applicationId: number, attachmentType: AttachmentType): Promise<void> =>
+    isMockMode
+      ? Promise.resolve()
+      : apiClient<void>(`/documents/attachments/${applicationId}/${attachmentType}`, { method: 'DELETE' }),
+
+  getAttachmentDownloadUrl: (applicationId: number, attachmentType: AttachmentType): Promise<AttachmentDownload> =>
+    isMockMode
+      ? Promise.resolve({ downloadUrl: '', fileName: '' })
+      : apiClient<AttachmentDownload>(
+          `/documents/attachments/${applicationId}/${attachmentType}/download`,
+        ),
 }

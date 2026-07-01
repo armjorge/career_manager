@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { documentsApi } from '@/api/documents.api'
 import type {
+  AttachmentType,
   GenerateDocumentPayload,
   UpdateCoverLetterPayload,
   UpdateResumeDetailsPayload,
@@ -13,6 +14,7 @@ export const documentKeys = {
   templates: ['documents', 'templates'] as const,
   generationOptions: ['documents', 'generation-options'] as const,
   generations: ['documents', 'generations'] as const,
+  attachments: (applicationId: number) => ['documents', 'attachments', applicationId] as const,
 }
 
 export function useResumeRows() {
@@ -127,5 +129,42 @@ export function useDeleteGeneration() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: documentKeys.generations })
     },
+  })
+}
+
+export function useAttachments(applicationId: number | null) {
+  return useQuery({
+    queryKey: applicationId !== null ? documentKeys.attachments(applicationId) : ['documents', 'attachments', null],
+    queryFn: () => (applicationId !== null ? documentsApi.listAttachments(applicationId) : Promise.resolve([])),
+    enabled: applicationId !== null,
+  })
+}
+
+export function useUploadAttachment(applicationId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ attachmentType, file }: { attachmentType: AttachmentType; file: File }) =>
+      documentsApi.uploadAttachment(applicationId, attachmentType, file),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: documentKeys.attachments(applicationId) })
+    },
+  })
+}
+
+export function useDeleteAttachment(applicationId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (attachmentType: AttachmentType) =>
+      documentsApi.deleteAttachment(applicationId, attachmentType),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: documentKeys.attachments(applicationId) })
+    },
+  })
+}
+
+export function useDownloadAttachment() {
+  return useMutation({
+    mutationFn: ({ applicationId, attachmentType }: { applicationId: number; attachmentType: AttachmentType }) =>
+      documentsApi.getAttachmentDownloadUrl(applicationId, attachmentType),
   })
 }

@@ -7,6 +7,7 @@ import {
   Globe,
   LayoutDashboard,
   LogOut,
+  Paperclip,
   Rocket,
 } from 'lucide-react'
 import { cn } from '@/utils/cn'
@@ -19,6 +20,7 @@ const navItems = [
   { to: '/companies', label: 'Companies', icon: Building2 },
   { to: '/applications', label: 'Applications', icon: FileText },
   { to: '/documents', label: 'Letters & CV', icon: FolderOpen },
+  { to: '/attachments', label: 'App PDFs', icon: Paperclip },
   { to: '/generator', label: 'Generator', icon: Rocket },
   { to: '/sites', label: 'Web Pages', icon: Globe },
   { to: '/analytics', label: 'Analytics', icon: BarChart3 },
