@@ -1,0 +1,11 @@
+-- DEPRECATED — use SQL/ddl_postgres17.sql as the single source of truth.
+--
+-- That file contains the complete schema: all sequences, tables, indexes,
+-- sync_fact_to_tracker(), RLS, and trg_after_application_insert.
+--
+-- For an existing DB missing only the three extension objects, run these
+-- statements manually (they do not drop or alter existing relations):
+--
+--   \i fragments from ddl_postgres17.sql sections 2.9, 2.11, 4, and 6
+--
+-- Or restore from backup and apply ddl_postgres17.sql on a greenfield schema.

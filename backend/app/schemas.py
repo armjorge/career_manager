@@ -136,3 +136,125 @@ class AnalyticsSummary(ApiModel):
     language_distribution: list[LabelCount]
     category_distribution: list[LabelCount]
     industry_distribution: list[LabelCount]
+
+
+FileTypeLiteral = Literal["cv", "cover letter"]
+DocumentCategoryLiteral = Literal["Resume", "Cover Letter"]
+
+
+class ResumeDetailsOut(ApiModel):
+    application_id: int
+    ed1: str | None = None
+    ed2: str | None = None
+    ed3: str | None = None
+    ex1: str | None = None
+    ex2: str | None = None
+    ex3: str | None = None
+    skills: str | None = None
+    interests: str | None = None
+    file_id: int | None = None
+
+
+class ResumeDetailsUpdate(ApiModel):
+    ed1: str | None = None
+    ed2: str | None = None
+    ed3: str | None = None
+    ex1: str | None = None
+    ex2: str | None = None
+    ex3: str | None = None
+    skills: str | None = None
+    interests: str | None = None
+    file_id: int | None = None
+
+
+class ResumeDetailsRow(ResumeDetailsOut):
+    company_name: str
+    job_name: str
+    language: str | None = None
+    status: Literal["open", "closed"]
+    category_name: str | None = None
+    file_name: str | None = None
+    created_at: datetime
+
+
+class CoverLetterOut(ApiModel):
+    application_id: int
+    header: str | None = None
+    body: str | None = None
+    close: str | None = None
+    file_id: int | None = None
+
+
+class CoverLetterUpdate(ApiModel):
+    header: str | None = None
+    body: str | None = None
+    close: str | None = None
+    file_id: int | None = None
+
+
+class CoverLetterRow(CoverLetterOut):
+    company_name: str
+    job_name: str
+    language: str | None = None
+    status: Literal["open", "closed"]
+    category_name: str | None = None
+    file_name: str | None = None
+    created_at: datetime
+
+
+class FileTemplateOut(ApiModel):
+    file_id: int
+    file_name: str
+    file_hash: str
+    file_type: FileTypeLiteral
+    lang_id: int | None = None
+    language: str | None = None
+    active_status: bool
+    created_at: datetime
+
+
+class FileTemplateUpdate(ApiModel):
+    file_type: FileTypeLiteral | None = None
+    lang_id: int | None = None
+
+
+class GenerationOptionOut(ApiModel):
+    application_id: int
+    category: DocumentCategoryLiteral
+    company_name: str
+    job_name: str
+    language: str | None = None
+    status: Literal["open", "closed"]
+    category_name: str | None = None
+    file_name: str | None = None
+    file_hash: str | None = None
+    file_type: FileTypeLiteral | None = None
+    created_at: datetime
+
+
+class GenerateDocumentRequest(ApiModel):
+    application_id: int
+    category: DocumentCategoryLiteral
+    prefix: str | None = None
+
+
+class GenerateDocumentOut(ApiModel):
+    pdf_id: int
+    output_file: str
+    pdf_success: bool
+    download_url: str | None = None
+
+
+class GenerationLogOut(ApiModel):
+    pdf_id: int
+    application_id: int
+    file_hash: str
+    file_name: str | None = None
+    output_file: str
+    pdf_success: bool
+    created_at: datetime
+
+
+class DownloadUrlOut(ApiModel):
+    download_url: str
+    file_name: str
