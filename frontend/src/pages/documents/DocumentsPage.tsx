@@ -325,8 +325,12 @@ function CoverLetterTab() {
   )
 }
 
-function TemplatesSection() {
-  const { data: templates = [], isLoading } = useTemplates()
+interface TemplatesSectionProps {
+  fileType: FileType
+}
+
+function TemplatesSection({ fileType }: TemplatesSectionProps) {
+  const { data: allTemplates = [], isLoading } = useTemplates()
   const { data: languages = [] } = useLanguages()
   const uploadTemplate = useUploadTemplate()
   const updateTemplate = useUpdateTemplate()
@@ -335,23 +339,40 @@ function TemplatesSection() {
   const [feedback, setFeedback] = useState<{ variant: 'success' | 'error'; message: string } | null>(null)
   const [drafts, setDrafts] = useState<Record<number, { fileType: FileType; langId: string }>>({})
 
+  const label = fileType === 'cv' ? 'CV' : 'Cover letter'
+
+  // Only show templates matching the active tab's type
+  const templates = useMemo(
+    () => allTemplates.filter((t) => t.fileType === fileType),
+    [allTemplates, fileType],
+  )
+
   useEffect(() => {
     const next: Record<number, { fileType: FileType; langId: string }> = {}
-    for (const template of templates) {
+    for (const template of allTemplates) {
       next[template.fileId] = {
         fileType: template.fileType,
         langId: template.langId ? String(template.langId) : '',
       }
     }
     setDrafts(next)
-  }, [templates])
+  }, [allTemplates])
+
+  // Clear feedback when tab switches
+  useEffect(() => {
+    setFeedback(null)
+  }, [fileType])
 
   const onUpload = async (file: File | undefined) => {
     if (!file) return
     setFeedback(null)
     try {
-      await uploadTemplate.mutateAsync(file)
-      setFeedback({ variant: 'success', message: `Uploaded ${file.name}` })
+      const uploaded = await uploadTemplate.mutateAsync(file)
+      // If the inferred type doesn't match the active tab, correct it immediately
+      if (uploaded.fileType !== fileType) {
+        await updateTemplate.mutateAsync({ fileId: uploaded.fileId, fileType })
+      }
+      setFeedback({ variant: 'success', message: `Uploaded ${file.name} as ${label} template.` })
     } catch (error) {
       const message = error instanceof ApiClientError ? error.message : 'Upload failed.'
       setFeedback({ variant: 'error', message })
@@ -391,9 +412,9 @@ function TemplatesSection() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Template management</CardTitle>
+        <CardTitle>{label} templates</CardTitle>
         <CardDescription>
-          Upload .docx templates to S3 under your user folder. Files are tracked in dim_file with hash-based deduplication.
+          Upload .docx {label.toLowerCase()} templates. Files are stored in S3 and tracked in dim_file with hash-based deduplication.
         </CardDescription>
       </CardHeader>
       <div className="space-y-4 px-6 pb-6">
@@ -408,14 +429,16 @@ function TemplatesSection() {
             onChange={(event) => void onUpload(event.target.files?.[0])}
           />
           <Button type="button" variant="secondary" onClick={() => fileInputRef.current?.click()}>
-            Upload template
+            Upload {label.toLowerCase()} template
           </Button>
         </div>
 
         {isLoading ? (
           <p className="text-sm text-muted">Loading templates…</p>
         ) : templates.length === 0 ? (
-          <p className="text-sm text-muted">No active templates. Upload a .docx file to get started.</p>
+          <p className="text-sm text-muted">
+            No {label.toLowerCase()} templates yet. Upload a .docx file to get started.
+          </p>
         ) : (
           <div className="space-y-3">
             {templates.map((template) => {
@@ -423,27 +446,12 @@ function TemplatesSection() {
               return (
                 <div
                   key={template.fileId}
-                  className="grid gap-3 rounded-lg border border-border p-4 md:grid-cols-[1.5fr_1fr_1fr_auto_auto]"
+                  className="grid gap-3 rounded-lg border border-border p-4 md:grid-cols-[1.5fr_1fr_auto_auto]"
                 >
                   <div>
                     <p className="font-medium text-foreground">{template.fileName}</p>
                     <p className="text-xs text-muted">Hash: {template.fileHash.slice(0, 8)}…</p>
                   </div>
-                  <Select
-                    value={draft?.fileType ?? template.fileType}
-                    onChange={(event) =>
-                      setDrafts((current) => ({
-                        ...current,
-                        [template.fileId]: {
-                          fileType: event.target.value as FileType,
-                          langId: draft?.langId ?? '',
-                        },
-                      }))
-                    }
-                  >
-                    <option value="cv">cv</option>
-                    <option value="cover letter">cover letter</option>
-                  </Select>
                   <Select
                     value={draft?.langId ?? ''}
                     onChange={(event) =>
@@ -509,7 +517,7 @@ export function DocumentsPage() {
       </div>
 
       {tab === 'resume' ? <ResumeTab /> : <CoverLetterTab />}
-      <TemplatesSection />
+      <TemplatesSection fileType={tab === 'resume' ? 'cv' : 'cover letter'} />
     </div>
   )
 }
