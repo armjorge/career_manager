@@ -9,6 +9,9 @@ from psycopg2.extras import RealDictCursor
 from backend.app.auth import get_current_user_id
 from backend.app.database import db_cursor, schema
 from backend.app.schemas import (
+    AttachmentDownloadOut,
+    AttachmentOut,
+    AttachmentTypeLiteral,
     CoverLetterOut,
     CoverLetterRow,
     CoverLetterUpdate,
@@ -30,6 +33,7 @@ from backend.app.services.document_generation import (
     unique_output_filename,
 )
 from backend.app.services.s3_storage import (
+    attachment_object_key,
     generated_object_key,
     get_document_storage,
     md5_hex,
@@ -747,3 +751,182 @@ def download_generation(
         output_file,
     )
     return DownloadUrlOut(download_url=url, file_name=output_file)
+
+
+# ---------------------------------------------------------------------------
+# Application Attachments (job description, CV submitted, cover letter submitted)
+# ---------------------------------------------------------------------------
+
+_VALID_ATTACHMENT_TYPES: set[str] = {"job_description", "resume_submitted", "cover_letter_submitted"}
+
+
+def _validate_attachment_type(attachment_type: str) -> AttachmentTypeLiteral:
+    if attachment_type not in _VALID_ATTACHMENT_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"message": f"Invalid attachment type: {attachment_type}", "code": "INVALID_TYPE"},
+        )
+    return attachment_type  # type: ignore[return-value]
+
+
+@router.get("/attachments/{application_id}", response_model=list[AttachmentOut])
+def list_attachments(
+    application_id: int,
+    user_id: UUID = Depends(get_current_user_id),
+) -> list[AttachmentOut]:
+    with db_cursor() as cur:
+        _ensure_application_owned(cur, user_id, application_id)
+        cur.execute(
+            f"""
+            SELECT
+                attachment_id, application_id, attachment_type,
+                s3_key, file_name, file_hash, file_size_bytes,
+                uploaded_at, load_date::text AS load_date, created_at
+            FROM {schema()}.dim_attachment
+            WHERE user_id = %s AND application_id = %s
+            ORDER BY attachment_type
+            """,
+            (str(user_id), application_id),
+        )
+        return [AttachmentOut.model_validate(row) for row in cur.fetchall()]
+
+
+@router.post(
+    "/attachments/{application_id}/{attachment_type}/upload",
+    response_model=AttachmentOut,
+)
+async def upload_attachment(
+    application_id: int,
+    attachment_type: str,
+    file: UploadFile = File(...),
+    user_id: UUID = Depends(get_current_user_id),
+) -> AttachmentOut:
+    atype = _validate_attachment_type(attachment_type)
+
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"message": "Only PDF files are accepted", "code": "INVALID_FILE"},
+        )
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"message": "Uploaded file is empty", "code": "INVALID_FILE"},
+        )
+
+    file_hash = md5_hex(content)
+    file_size = len(content)
+    original_name = file.filename.rsplit("/", 1)[-1]
+    storage = get_document_storage()
+
+    with db_cursor() as cur:
+        _ensure_application_owned(cur, user_id, application_id)
+
+        s3_key = storage.upload_attachment(user_id, application_id, atype, content)
+
+        cur.execute(
+            f"""
+            INSERT INTO {schema()}.dim_attachment
+                (application_id, user_id, attachment_type, s3_key, file_name, file_hash,
+                 file_size_bytes, uploaded_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+            ON CONFLICT (application_id, attachment_type) DO UPDATE
+                SET s3_key          = EXCLUDED.s3_key,
+                    file_name       = EXCLUDED.file_name,
+                    file_hash       = EXCLUDED.file_hash,
+                    file_size_bytes = EXCLUDED.file_size_bytes,
+                    uploaded_at     = NOW()
+            RETURNING
+                attachment_id, application_id, attachment_type,
+                s3_key, file_name, file_hash, file_size_bytes,
+                uploaded_at, load_date::text AS load_date, created_at
+            """,
+            (application_id, str(user_id), atype, s3_key, original_name, file_hash, file_size),
+        )
+        row = cur.fetchone()
+        if row is None:
+            raise HTTPException(status_code=500, detail={"message": "Failed to save attachment"})
+        return AttachmentOut.model_validate(row)
+
+
+@router.delete(
+    "/attachments/{application_id}/{attachment_type}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_attachment(
+    application_id: int,
+    attachment_type: str,
+    user_id: UUID = Depends(get_current_user_id),
+) -> None:
+    atype = _validate_attachment_type(attachment_type)
+
+    with db_cursor() as cur:
+        _ensure_application_owned(cur, user_id, application_id)
+
+        cur.execute(
+            f"""
+            SELECT s3_key FROM {schema()}.dim_attachment
+            WHERE user_id = %s AND application_id = %s AND attachment_type = %s
+            """,
+            (str(user_id), application_id, atype),
+        )
+        row = cur.fetchone()
+        if row is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"message": "Attachment not found", "code": "NOT_FOUND"},
+            )
+
+        cur.execute(
+            f"""
+            UPDATE {schema()}.dim_attachment
+            SET s3_key = NULL, file_name = NULL, file_hash = NULL,
+                file_size_bytes = NULL, uploaded_at = NULL
+            WHERE user_id = %s AND application_id = %s AND attachment_type = %s
+            """,
+            (str(user_id), application_id, atype),
+        )
+
+    if row["s3_key"]:
+        storage = get_document_storage()
+        try:
+            storage.client.delete_object(Bucket=storage.bucket, Key=row["s3_key"])
+        except Exception:
+            pass
+
+
+@router.get(
+    "/attachments/{application_id}/{attachment_type}/download",
+    response_model=AttachmentDownloadOut,
+)
+def download_attachment(
+    application_id: int,
+    attachment_type: str,
+    user_id: UUID = Depends(get_current_user_id),
+) -> AttachmentDownloadOut:
+    atype = _validate_attachment_type(attachment_type)
+
+    with db_cursor() as cur:
+        _ensure_application_owned(cur, user_id, application_id)
+
+        cur.execute(
+            f"""
+            SELECT s3_key, file_name FROM {schema()}.dim_attachment
+            WHERE user_id = %s AND application_id = %s AND attachment_type = %s
+            """,
+            (str(user_id), application_id, atype),
+        )
+        row = cur.fetchone()
+
+    if row is None or not row["s3_key"]:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"message": "No file uploaded for this attachment", "code": "NOT_FOUND"},
+        )
+
+    storage = get_document_storage()
+    display_name = row["file_name"] or f"{atype}.pdf"
+    url = storage.presigned_download_url(row["s3_key"], display_name)
+    return AttachmentDownloadOut(download_url=url, file_name=display_name)

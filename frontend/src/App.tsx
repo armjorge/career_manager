@@ -9,6 +9,7 @@ import { ApplicationsPage } from '@/pages/applications/ApplicationsPage'
 import { AnalyticsPage } from '@/pages/AnalyticsPage'
 import { DocumentsPage } from '@/pages/documents/DocumentsPage'
 import { GeneratorPage } from '@/pages/documents/GeneratorPage'
+import { AttachmentsPage } from '@/pages/documents/AttachmentsPage'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
 
 const queryClient = new QueryClient({
@@ -35,6 +36,7 @@ function AuthGate() {
         <Route path="applications" element={<ApplicationsPage />} />
         <Route path="documents" element={<DocumentsPage />} />
         <Route path="generator" element={<GeneratorPage />} />
+        <Route path="attachments" element={<AttachmentsPage />} />
         <Route
           path="sites"
           element={

@@ -260,3 +260,24 @@ class GenerationLogOut(ApiModel):
 class DownloadUrlOut(ApiModel):
     download_url: str
     file_name: str
+
+
+AttachmentTypeLiteral = Literal["job_description", "resume_submitted", "cover_letter_submitted"]
+
+
+class AttachmentOut(ApiModel):
+    attachment_id: int
+    application_id: int
+    attachment_type: AttachmentTypeLiteral
+    s3_key: str | None = None
+    file_name: str | None = None
+    file_hash: str | None = None
+    file_size_bytes: int | None = None
+    uploaded_at: datetime | None = None
+    load_date: str | None = None
+    created_at: datetime
+
+
+class AttachmentDownloadOut(ApiModel):
+    download_url: str
+    file_name: str

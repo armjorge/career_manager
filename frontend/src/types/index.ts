@@ -218,6 +218,38 @@ export interface MilestoneProgress {
   m5: boolean
 }
 
+export type AttachmentType = 'job_description' | 'resume_submitted' | 'cover_letter_submitted'
+
+export const ATTACHMENT_LABELS: Record<AttachmentType, string> = {
+  job_description: 'Job Description',
+  resume_submitted: 'CV Submitted',
+  cover_letter_submitted: 'Cover Letter Submitted',
+}
+
+export const ATTACHMENT_TYPES: AttachmentType[] = [
+  'job_description',
+  'resume_submitted',
+  'cover_letter_submitted',
+]
+
+export interface Attachment {
+  attachmentId: number
+  applicationId: number
+  attachmentType: AttachmentType
+  s3Key: string | null
+  fileName: string | null
+  fileHash: string | null
+  fileSizeBytes: number | null
+  uploadedAt: string | null
+  loadDate: string | null
+  createdAt: string
+}
+
+export interface AttachmentDownload {
+  downloadUrl: string
+  fileName: string
+}
+
 export interface ApiError {
   message: string
   code?: string

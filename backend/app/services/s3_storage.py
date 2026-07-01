@@ -8,6 +8,8 @@ from botocore.exceptions import ClientError
 
 from backend.app.config import get_settings
 
+AttachmentTypeLiteral = str  # 'job_description' | 'resume_submitted' | 'cover_letter_submitted'
+
 
 def user_templates_prefix(user_id: UUID) -> str:
     return f"{user_id}/Templates"
@@ -17,12 +19,20 @@ def user_generated_prefix(user_id: UUID) -> str:
     return f"{user_id}/Generated_files"
 
 
+def user_attachments_prefix(user_id: UUID, application_id: int) -> str:
+    return f"{user_id}/Attachments/{application_id}"
+
+
 def template_object_key(user_id: UUID, file_name: str) -> str:
     return f"{user_templates_prefix(user_id)}/{file_name}"
 
 
 def generated_object_key(user_id: UUID, file_name: str) -> str:
     return f"{user_generated_prefix(user_id)}/{file_name}"
+
+
+def attachment_object_key(user_id: UUID, application_id: int, attachment_type: AttachmentTypeLiteral) -> str:
+    return f"{user_attachments_prefix(user_id, application_id)}/{attachment_type}.pdf"
 
 
 def md5_hex(content: bytes) -> str:
@@ -57,6 +67,34 @@ class DocumentStorage:
             ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         )
         return key
+
+    def upload_attachment(
+        self,
+        user_id: UUID,
+        application_id: int,
+        attachment_type: AttachmentTypeLiteral,
+        content: bytes,
+    ) -> str:
+        key = attachment_object_key(user_id, application_id, attachment_type)
+        self.client.put_object(
+            Bucket=self.bucket,
+            Key=key,
+            Body=content,
+            ContentType="application/pdf",
+        )
+        return key
+
+    def delete_attachment(
+        self,
+        user_id: UUID,
+        application_id: int,
+        attachment_type: AttachmentTypeLiteral,
+    ) -> None:
+        key = attachment_object_key(user_id, application_id, attachment_type)
+        try:
+            self.client.delete_object(Bucket=self.bucket, Key=key)
+        except ClientError:
+            pass
 
     def download(self, key: str) -> bytes:
         response = self.client.get_object(Bucket=self.bucket, Key=key)
