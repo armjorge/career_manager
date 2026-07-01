@@ -1,0 +1,165 @@
+.im-conceptual-attribute-multivalue::after {
+  content: '';
+  width: calc(100% - 10px);
+  height: calc(100% - 10px);
+  position: absolute;
+  left: 5px;
+  top: 5px;
+  display: inline-block;
+  text-align: center;
+  display: grid;
+  grid-template-rows: 1fr;
+  align-items: center;
+  background-image: url(im-shape-attribute-multivalue.svg) !important;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+
+.im-conceptual-attribute-derived::after {
+  content: '';
+  width: calc(100% - 10px);
+  height: calc(100% - 10px);
+  position: absolute;
+  left: 5px;
+  top: 5px;
+  display: inline-block;
+  text-align: center;
+  display: grid;
+  grid-template-rows: 1fr;
+  align-items: center;
+  background-image: url(im-shape-attribute-derived.svg) !important;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+
+.im-conceptual-entity-weak::after {
+  content: '';
+  width: calc(100% - 10px);
+  height: calc(100% - 10px);
+  position: absolute;
+  left: 5px;
+  top: 5px;
+  display: inline-block;
+  text-align: center;
+  display: grid;
+  grid-template-rows: 1fr;
+  align-items: center;
+  background-image: url(im-shape-entity-weak.svg) !important;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+
+.im-conceptual-entity-associative::after {
+  content: '';
+  width: calc(100% - 1px);
+  height: calc(100% - 1px);
+  position: absolute;
+  left: 1px;
+  top: 1px;
+  display: inline-block;
+  text-align: center;
+  display: grid;
+  grid-template-rows: 1fr;
+  align-items: center;
+  background-image: url(im-shape-entity-associative.svg) !important;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+
+.im-conceptual-relationship-identifying::after {
+  content: '';
+  width: calc(100% - 10px);
+  height: calc(100% - 10px);
+  position: absolute;
+  left: 5px;
+  top: 5px;
+  display: inline-block;
+  text-align: center;
+  display: grid;
+  grid-template-rows: 1fr;
+  align-items: center;
+  background-image: url(im-shape-relationship-identifying.svg) !important;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+
+.im-conceptual-cat {
+  text-align: center;
+  min-width: 150px;
+  min-height: 45px;
+  overflow: hidden !important;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: grid !important;
+  font-size: 13px;
+}
+
+.im-conceptual-relationship,
+.im-conceptual-relationship-identifying {
+  min-width: 150px;
+  min-height: 70px;
+}
+
+.im-conceptual-entity,
+.im-conceptual-entity-weak,
+.im-conceptual-entity-associative,
+.im-conceptual-attribute,
+.im-conceptual-attribute-multivalue,
+.im-conceptual-attribute-primary,
+.im-conceptual-attribute-derived {
+  min-width: 150px;
+  min-height: 45px;
+}
+
+.im-conceptual-inheritance {
+  min-width: 40px;
+  min-height: 45px;
+  color: transparent !important;
+}
+
+.im-conceptual-name {
+  text-align: center !important;
+  z-index: 1;
+  padding: 4px 8px;
+  font-size: 12px;
+  display: block;
+  align-self: center;
+  white-space: pre-wrap;
+}
+
+.im-conceptual-name-ConceptualInheritance {
+  display: none;
+}
+
+.im-conceptual-attribute-primary .im-conceptual-name-ConceptualAttribute {
+  text-decoration: underline;
+}
+
+.im-conceptual-entity svg *,
+.im-conceptual-entity-weak svg *,
+.im-conceptual-entity-associative svg * {
+  fill: #9C27B0;
+}
+
+.im-conceptual-attribute * svg,
+.im-conceptual-attribute-multivalue * svg,
+.im-conceptual-attribute-primary * svg,
+.im-conceptual-attribute-derived * svg {
+  fill: #4CAF50;
+}
+
+.im-conceptual-relationship svg *,
+.im-conceptual-relationship-identifying  svg * {
+  fill: #673AB7;
+}
+
+.im-conceptual-inheritance  svg * {
+  fill: #795548;
+}
+
+.im-n-conceptual {
+  min-width: 50px !important;
+  background: transparent !important;
+  outline: 1px solid transparent !important;
+}

@@ -29,19 +29,19 @@ st.page_link(
 )
 
 st.page_link(
-    "pages/02_cover_letters.py",
-    label="Cartas presentación",
+    "pages/02_pdf_letters_resumes.py",
+    label="Cartas y CV",
     icon="✉️",
 )
 
 st.page_link(
-    "pages/03_job_tracker.py",
-    label="Tracker de aplicaciones",
+    "pages/03_pdf_generator.py",
+    label="Generador de Archivos",
     icon="📈",
 )
 
 st.page_link(
-    "pages/04_pdf_handling.py",
-    label="Cargar PDF's",
-    icon="📄",
+    "pages/06_sites.py",
+    label="Web pages",
+    #icon="𝍌",
 )

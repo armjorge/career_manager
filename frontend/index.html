@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Career Manager</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      // S3 website hosting is HTTP-only; crypto.randomUUID requires a secure context.
+      (function () {
+        var cryptoObj = globalThis.crypto
+        if (!cryptoObj || typeof cryptoObj.randomUUID === 'function') return
+
+        cryptoObj.randomUUID = function randomUUID() {
+          if (typeof cryptoObj.getRandomValues === 'function') {
+            var bytes = new Uint8Array(16)
+            cryptoObj.getRandomValues(bytes)
+            bytes[6] = (bytes[6] & 0x0f) | 0x40
+            bytes[8] = (bytes[8] & 0x3f) | 0x80
+            var hex = Array.from(bytes, function (b) {
+              return b.toString(16).padStart(2, '0')
+            }).join('')
+            return (
+              hex.slice(0, 8) +
+              '-' +
+              hex.slice(8, 12) +
+              '-' +
+              hex.slice(12, 16) +
+              '-' +
+              hex.slice(16, 20) +
+              '-' +
+              hex.slice(20)
+            )
+          }
+
+          return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+            var r = (Math.random() * 16) | 0
+            var v = c === 'x' ? r : (r & 0x3) | 0x8
+            return v.toString(16)
+          })
+        }
+      })()
+
+      window.addEventListener(
+        'error',
+        function (event) {
+          var root = document.getElementById('root')
+          if (!root || root.childElementCount > 0) return
+
+          var message = event.message || 'Unknown error'
+          if (event.target && event.target.tagName === 'SCRIPT') {
+            message =
+              'Failed to load the app bundle (stale cache or missing file). Hard refresh: Cmd+Shift+R (Mac) or Ctrl+Shift+R (Windows).'
+          }
+
+          root.innerHTML =
+            '<div style="padding:24px;font-family:system-ui,sans-serif;background:#0f1419;color:#fca5a5;min-height:100vh;">' +
+            '<h1 style="margin:0 0 12px;font-size:20px;">Failed to load Career Manager</h1>' +
+            '<pre style="white-space:pre-wrap;margin:0;color:#8b9cb3;">' +
+            message +
+            '</pre></div>'
+        },
+        true,
+      )
+
+      window.addEventListener('unhandledrejection', function (event) {
+        var root = document.getElementById('root')
+        if (!root || root.childElementCount > 0) return
+        var reason = event.reason
+        var message =
+          reason && reason.message
+            ? reason.message
+            : typeof reason === 'string'
+              ? reason
+              : 'Unhandled application error'
+        root.innerHTML =
+          '<div style="padding:24px;font-family:system-ui,sans-serif;background:#0f1419;color:#fca5a5;min-height:100vh;">' +
+          '<h1 style="margin:0 0 12px;font-size:20px;">Failed to load Career Manager</h1>' +
+          '<pre style="white-space:pre-wrap;margin:0;color:#8b9cb3;">' +
+          message +
+          '</pre></div>'
+      })
+
+      window.setTimeout(function () {
+        var root = document.getElementById('root')
+        if (!root || root.childElementCount > 0) return
+        root.innerHTML =
+          '<div style="padding:24px;font-family:system-ui,sans-serif;background:#0f1419;color:#e2e8f0;min-height:100vh;">' +
+          '<h1 style="margin:0 0 12px;font-size:20px;">Still loading…</h1>' +
+          '<p style="margin:0;color:#8b9cb3;">If this stays blank, hard refresh (Cmd+Shift+R / Ctrl+Shift+R) or open DevTools → Console for errors.</p></div>'
+      }, 8000)
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

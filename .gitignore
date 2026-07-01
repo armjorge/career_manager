@@ -208,3 +208,13 @@ __marimo__/
 
 .env
 .DS_Store
+.DS_Store
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+
+# AWS Lambda package artifacts
+lambda.zip
+.lambda-package/

@@ -20,55 +20,70 @@ class CV_GENERATION():
             subprocess.call(['xdg-open', folder_path])
         
     def get_cv_files(self):
-        def sql_conexion(sql_url):
-            try:
-                engine = create_engine(sql_url)
-                return engine
-            except Exception as e:
-                print(f"❌ Error connecting to database: {e}")
-                return None
+        import hashlib
+        from sqlalchemy import text
+        
+        def calculate_hash(file_path):
+            hasher = hashlib.md5()
+            with open(file_path, 'rb') as f:
+                for chunk in iter(lambda: f.read(4096), b""):
+                    hasher.update(chunk)
+            return hasher.hexdigest()
 
-        cv_files = [f for f in os.listdir(self.templates_path) if f.startswith('Curriculum') and f.endswith('.docx')]
-        print(cv_files)
-        connexion = sql_conexion(self.data_access['DB_URL']).connect()
+        # 1. Scan filesystem
+        scanned_files = {} # hash -> filename
+        if not os.path.exists(self.templates_path):
+            os.makedirs(self.templates_path, exist_ok=True)
+            
+        for f in os.listdir(self.templates_path):
+            if f.endswith('.docx') and not f.startswith('~'):
+                path = os.path.join(self.templates_path, f)
+                f_hash = calculate_hash(path)
+                scanned_files[f_hash] = f
 
-        query_langes = "SELECT lang FROM career_accelerator.languages"
-        df_languages = pd.read_sql(query_langes, connexion)
-        languages = list(df_languages['lang'].unique())
-        lenguages_cv = {}
-        # Detectar idioma de cada archivo basado en el nombre
-        for cv_file in cv_files:
-            # Extraer la parte del idioma: después de 'Curriculum_' y antes de '.docx'
-            parts = cv_file.replace('Curriculum_', '').replace('.docx', '').split('_')
-            detected_lang = parts[0]  # Toma la primera parte (e.g., 'French', 'English')
-  
-            # Verificar si el idioma detectado está en la lista de idiomas válidos
-            if detected_lang in languages:
-                lenguages_cv[cv_file] = detected_lang
-            else:
-                print(f"⚠️ Idioma '{detected_lang}' no encontrado en la lista de idiomas válidos para {cv_file}. Omitiendo.")
-        print(lenguages_cv)
-        # Insertar en la tabla career_accelerator.cv_files
-        if lenguages_cv:
-            try:
-                with connexion.connection.cursor() as cur:
-                    # Usar ON CONFLICT para evitar duplicados (asumiendo que cv_file es único)
-                    cur.executemany(
-                        """
-                        INSERT INTO career_accelerator.cv_files (cv_file, lang)
-                        VALUES (%s, %s)
-                        ON CONFLICT (cv_file) DO NOTHING;
-                        """,
-                        [(file, lang) for file, lang in lenguages_cv.items()]
-                    )
-                    connexion.commit()
-                print(f"✅ Insertados {len(lenguages_cv)} archivos en cv_files.")
-            except Exception as e:
-                print(f"❌ Error al insertar en cv_files: {e}")
-        else:
-            print("⚠️ No hay archivos válidos para insertar.")
-
-        connexion.close()
+        # 2. Get connection
+        db_url = self.data_access.get('DB_URL') or os.getenv("DB_POSTGRESQL")
+        if not db_url:
+            print("❌ No DB_URL found")
+            return 0, 0, 0
+            
+        engine = create_engine(db_url)
+        schema = "consulting_tracker" 
+        
+        with engine.connect() as conn:
+            # 3. Get existing files
+            query = text(f'SELECT file_name, file_hash, active_status FROM "{schema}".dim_file')
+            df_existing = pd.read_sql(query, conn)
+            
+            existing_hashes = set(df_existing['file_hash'].tolist())
+            active_hashes_in_db = set(df_existing[df_existing['active_status'] == True]['file_hash'].tolist())
+            
+            new_hashes = set(scanned_files.keys()) - existing_hashes
+            hashes_to_deactivate = active_hashes_in_db - set(scanned_files.keys())
+            hashes_to_reactivate = (set(scanned_files.keys()) & existing_hashes) - active_hashes_in_db
+            
+            # 4. Process
+            for h in new_hashes:
+                fname = scanned_files[h]
+                # Heuristic: if 'cover' is in the name, mark as cover letter, else cv
+                ftype = 'cover letter' if 'cover' in fname.lower() else 'cv'
+                conn.execute(text(f"""
+                    INSERT INTO "{schema}".dim_file (file_name, file_hash, file_type, active_status)
+                    VALUES (:name, :hash, :type, True)
+                """), {"name": fname, "hash": h, "type": ftype})
+            
+            for h in hashes_to_deactivate:
+                conn.execute(text(f"""
+                    UPDATE "{schema}".dim_file SET active_status = False WHERE file_hash = :hash
+                """), {"hash": h})
+                
+            for h in hashes_to_reactivate:
+                conn.execute(text(f"""
+                    UPDATE "{schema}".dim_file SET active_status = True, file_name = :name WHERE file_hash = :hash
+                """), {"name": scanned_files[h], "hash": h})
+            
+            conn.commit()
+            return len(new_hashes), len(hashes_to_deactivate), len(hashes_to_reactivate)
 
     def postgre_to_docx(self, doc_type, one_row_df, ui_log=None):
         def _log(msg: str, level: str = "info"):
