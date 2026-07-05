@@ -140,9 +140,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(initialSession?.token ?? null)
 
   useEffect(() => {
-    const session = restoreSessionFromStorage()
-    setUser(session?.user ?? null)
-    setToken(session?.token ?? null)
+    const stored = restoreSessionFromStorage()
+    if (stored) {
+      setUser(stored.user)
+      setToken(stored.token)
+      return
+    }
+    // Pick up sessions established by auth-ui (OAuth redirects, etc.)
+    void fetchAuthToken().then((token) => {
+      if (!token) return
+      const user = userFromToken(token)
+      if (user) {
+        setStoredToken(token)
+        setUser(user)
+        setToken(token)
+      }
+    })
   }, [])
 
   const login = useCallback(async (email: string, password: string) => {

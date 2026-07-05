@@ -2,17 +2,24 @@ name: Backend CI/CD
 
 on:
   push:
-    branches:
-      - develop
+    branches: [develop, main]
+    paths: ['backend/**', '.github/workflows/backend.yml']
   pull_request:
-    branches:
-      - develop
-  # Only trigger if files in the backend folder change
+    branches: [develop, main]
+    paths: ['backend/**', '.github/workflows/backend.yml']
   workflow_dispatch:
+
+# Resolve environment name:
+#   main branch (or manual target)  → prod
+#   develop branch                  → dev
+#
+# When you have a second AWS account, update the secrets inside the
+# 'prod' GitHub Environment — no workflow changes needed.
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
 
     steps:
       - name: Checkout code
@@ -24,24 +31,24 @@ jobs:
           python-version: '3.12'
 
       - name: Install OS Dependencies
-        # Ensure zip is installed for your shell script
         run: sudo apt-get update && sudo apt-get install -y zip
 
-      - name: Build Lambda Package (Quality Check)
+      - name: Build Lambda Package
         run: |
           chmod +x ./backend/build-lambda.sh
           PYTHON=python3.12 ./backend/build-lambda.sh
 
       - name: Configure AWS Credentials
-        # ONLY run this step if the event is a merge/push, NOT a pull request
-        if: github.event_name == 'push'
+        if: github.event_name != 'pull_request'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
 
       - name: Deploy to Lambda
-        if: github.event_name == 'push'
-        # Adjust the function name if you have a specific dev lambda (e.g., career-api-backend-dev)
-        run: aws lambda update-function-code --function-name career-api-backend --zip-file fileb://lambda.zip
+        if: github.event_name != 'pull_request'
+        run: |
+          aws lambda update-function-code \
+            --function-name ${{ secrets.LAMBDA_FUNCTION_NAME }} \
+            --zip-file fileb://lambda.zip
