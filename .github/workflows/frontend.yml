@@ -2,18 +2,24 @@ name: Frontend CI/CD
 
 on:
   push:
-    branches:
-      - develop
+    branches: [develop, main]
+    paths: ['frontend/**', '.github/workflows/frontend.yml']
   pull_request:
-    branches:
-      - develop
-  # Only trigger if files in the frontend folder change
+    branches: [develop, main]
+    paths: ['frontend/**', '.github/workflows/frontend.yml']
   workflow_dispatch:
+
+# Resolve environment name:
+#   main branch (or manual target)  → prod
+#   develop branch                  → dev
+#
+# When you have a second AWS account, update the secrets inside the
+# 'prod' GitHub Environment — no workflow changes needed.
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    # Set the working directory so we don't have to 'cd frontend' in every step
+    environment: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
     defaults:
       run:
         working-directory: ./frontend
@@ -32,23 +38,28 @@ jobs:
       - name: Install Dependencies
         run: npm install
 
-      - name: Build React App (Quality Check)
+      - name: Build React App
         env:
-          # Inject your environment variables during the build phase
-          VITE_API_BASE_URL: ${{ secrets.VITE_DEV_API_BASE_URL }}
-          VITE_NEON_AUTH_URL: ${{ secrets.VITE_DEV_NEON_AUTH_URL }}
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+          VITE_NEON_AUTH_URL: ${{ secrets.VITE_NEON_AUTH_URL }}
         run: npm run build
 
       - name: Configure AWS Credentials
-        # ONLY run this step if the event is a merge/push, NOT a pull request
-        if: github.event_name == 'push'
+        if: github.event_name != 'pull_request'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
 
       - name: Deploy to S3
-        if: github.event_name == 'push'
-        # Adjust the bucket name here if you have a specific dev bucket (e.g., s3://career-app-frontend-dev/)
-        run: aws s3 sync dist/ s3://career-app-frontend/ --delete
+        if: github.event_name != 'pull_request'
+        run: |
+          aws s3 sync dist/ ${{ secrets.S3_BUCKET }} --delete
+
+      - name: Invalidate CloudFront Cache
+        if: github.event_name != 'pull_request'
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/index.html"

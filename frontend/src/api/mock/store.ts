@@ -518,9 +518,43 @@ export const mockDb = {
     return hydrateTracker(updated)
   },
 
-  async listWebsites(): Promise<Website[]> {
+  async listWebsites(): Promise<(Website & { applicationCount: number })[]> {
     await delay()
-    return [...store.websites].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    return [...store.websites]
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .map((site) => ({
+        ...site,
+        applicationCount: store.applications.filter((app) => app.siteId === site.siteId).length,
+      }))
+  },
+
+  async createWebsite(address: string): Promise<Website & { applicationCount: number }> {
+    await delay()
+    const normalized = address.trim().toLowerCase()
+    if (store.websites.some((site) => site.address.trim().toLowerCase() === normalized)) {
+      throw new ApiClientError(`'${address.trim()}' already exists.`, 409, 'DUPLICATE')
+    }
+    const record: Website = {
+      siteId: nextId('siteId'),
+      address: address.trim(),
+      createdAt: now(),
+      lastModification: null,
+    }
+    store.websites.push(record)
+    return { ...record, applicationCount: 0 }
+  },
+
+  async deleteWebsite(siteId: number): Promise<void> {
+    await delay()
+    const index = store.websites.findIndex((site) => site.siteId === siteId)
+    if (index === -1) {
+      throw new ApiClientError('Site not found.', 404, 'NOT_FOUND')
+    }
+    const inUse = store.applications.some((app) => app.siteId === siteId)
+    if (inUse) {
+      throw new ApiClientError('Cannot delete — linked to active applications.', 409, 'IN_USE')
+    }
+    store.websites.splice(index, 1)
   },
 
   async getAnalyticsSummary(): Promise<AnalyticsSummary> {

@@ -1,5 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { NeonAuthUIProvider } from '@neondatabase/auth-ui'
+import { authClient } from '@/auth/client'
 import { AuthProvider, useAuth } from '@/context/AuthContext'
 import { AppShell } from '@/layouts/AppShell'
 import { Auth } from '@/pages/Auth'
@@ -11,6 +13,7 @@ import { DocumentsPage } from '@/pages/documents/DocumentsPage'
 import { GeneratorPage } from '@/pages/documents/GeneratorPage'
 import { AttachmentsPage } from '@/pages/documents/AttachmentsPage'
 import { SitesPage } from '@/pages/sites/SitesPage'
+import { ResetPasswordPage } from '@/pages/ResetPasswordPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -24,35 +27,38 @@ const queryClient = new QueryClient({
 function AuthGate() {
   const { isAuthenticated } = useAuth()
 
-  if (!isAuthenticated) {
-    return <Auth />
-  }
-
   return (
     <Routes>
-      <Route element={<AppShell />}>
-        <Route index element={<DashboardPage />} />
-        <Route path="companies" element={<CompaniesPage />} />
-        <Route path="applications" element={<ApplicationsPage />} />
-        <Route path="documents" element={<DocumentsPage />} />
-        <Route path="generator" element={<GeneratorPage />} />
-        <Route path="attachments" element={<AttachmentsPage />} />
-        <Route path="sites" element={<SitesPage />} />
-        <Route path="analytics" element={<AnalyticsPage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Route>
+      <Route path="reset-password" element={<ResetPasswordPage />} />
+      {isAuthenticated ? (
+        <Route element={<AppShell />}>
+          <Route index element={<DashboardPage />} />
+          <Route path="companies" element={<CompaniesPage />} />
+          <Route path="applications" element={<ApplicationsPage />} />
+          <Route path="documents" element={<DocumentsPage />} />
+          <Route path="generator" element={<GeneratorPage />} />
+          <Route path="attachments" element={<AttachmentsPage />} />
+          <Route path="sites" element={<SitesPage />} />
+          <Route path="analytics" element={<AnalyticsPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
+      ) : (
+        <Route path="*" element={<Auth />} />
+      )}
     </Routes>
   )
 }
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <BrowserRouter>
-          <AuthGate />
-        </BrowserRouter>
-      </AuthProvider>
-    </QueryClientProvider>
+    <NeonAuthUIProvider authClient={authClient} redirectTo="/" defaultTheme="dark">
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <BrowserRouter>
+            <AuthGate />
+          </BrowserRouter>
+        </AuthProvider>
+      </QueryClientProvider>
+    </NeonAuthUIProvider>
   )
 }
