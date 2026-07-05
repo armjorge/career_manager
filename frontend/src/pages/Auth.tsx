@@ -32,9 +32,9 @@ export function Auth() {
         ) : null}
 
         {mode === 'sign-in' ? (
-          <SignInForm redirectTo="/" />
+          <SignInForm redirectTo="/" localization={{}} />
         ) : (
-          <SignUpForm redirectTo="/" />
+          <SignUpForm redirectTo="/" localization={{}} />
         )}
 
         <p className="text-center text-sm text-muted">
