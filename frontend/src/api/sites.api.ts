@@ -1,4 +1,5 @@
-import { apiClient } from '@/api/client'
+import { apiClient, isMockMode } from '@/api/client'
+import { mockDb } from '@/api/mock/store'
 import type { Website } from '@/types'
 
 export interface WebsiteWithCount extends Website {
@@ -7,11 +8,15 @@ export interface WebsiteWithCount extends Website {
 
 export const sitesApi = {
   list: (): Promise<WebsiteWithCount[]> =>
-    apiClient<WebsiteWithCount[]>('/sites'),
+    isMockMode ? mockDb.listWebsites() : apiClient<WebsiteWithCount[]>('/sites'),
 
   create: (address: string): Promise<WebsiteWithCount> =>
-    apiClient<WebsiteWithCount>('/sites', { method: 'POST', body: { address } }),
+    isMockMode
+      ? mockDb.createWebsite(address)
+      : apiClient<WebsiteWithCount>('/sites', { method: 'POST', body: { address } }),
 
   delete: (siteId: number): Promise<void> =>
-    apiClient<void>(`/sites/${siteId}`, { method: 'DELETE' }),
+    isMockMode
+      ? mockDb.deleteWebsite(siteId)
+      : apiClient<void>(`/sites/${siteId}`, { method: 'DELETE' }),
 }
