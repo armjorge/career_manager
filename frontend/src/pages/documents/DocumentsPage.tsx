@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import { ApiClientError } from '@/api/client'
 import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
@@ -29,6 +30,7 @@ function ResumeTab() {
   const updateResume = useUpdateResumeDetails()
   const [selectedId, setSelectedId] = useState<number | ''>('')
   const [feedback, setFeedback] = useState<{ variant: 'success' | 'error'; message: string } | null>(null)
+  const [showDetails, setShowDetails] = useState(false)
   const [form, setForm] = useState({
     ed1: '',
     ed2: '',
@@ -147,20 +149,6 @@ function ResumeTab() {
             </Select>
           </Field>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            {(['ed1', 'ed2', 'ed3', 'ex1', 'ex2', 'ex3', 'skills', 'interests'] as const).map((field) => (
-              <Field key={field}>
-                <Label htmlFor={`resume-${field}`}>{field.toUpperCase()}</Label>
-                <textarea
-                  id={`resume-${field}`}
-                  className="min-h-24 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                  value={form[field]}
-                  onChange={(event) => setForm((current) => ({ ...current, [field]: event.target.value }))}
-                />
-              </Field>
-            ))}
-          </div>
-
           <Field>
             <Label htmlFor="resume-template">Associated template (CV)</Label>
             <Select
@@ -182,6 +170,31 @@ function ResumeTab() {
             </Select>
           </Field>
 
+          <button
+            type="button"
+            onClick={() => setShowDetails((v) => !v)}
+            className="flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary-hover"
+          >
+            {showDetails ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            {showDetails ? 'Hide details' : 'Details'}
+          </button>
+
+          {showDetails && (
+            <div className="grid gap-4 md:grid-cols-2">
+              {(['ed1', 'ed2', 'ed3', 'ex1', 'ex2', 'ex3', 'skills', 'interests'] as const).map((field) => (
+                <Field key={field}>
+                  <Label htmlFor={`resume-${field}`}>{field.toUpperCase()}</Label>
+                  <textarea
+                    id={`resume-${field}`}
+                    className="min-h-24 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    value={form[field]}
+                    onChange={(event) => setForm((current) => ({ ...current, [field]: event.target.value }))}
+                  />
+                </Field>
+              ))}
+            </div>
+          )}
+
           <Button type="button" onClick={() => void onSave()} disabled={updateResume.isPending}>
             Save resume details
           </Button>
@@ -197,6 +210,7 @@ function CoverLetterTab() {
   const updateCoverLetter = useUpdateCoverLetter()
   const [selectedId, setSelectedId] = useState<number | ''>('')
   const [feedback, setFeedback] = useState<{ variant: 'success' | 'error'; message: string } | null>(null)
+  const [showDetails, setShowDetails] = useState(false)
   const [form, setForm] = useState({ header: '', body: '', close: '', fileId: '' as number | '' })
 
   const clTemplates = useMemo(
@@ -283,18 +297,6 @@ function CoverLetterTab() {
             </Select>
           </Field>
 
-          {(['header', 'body', 'close'] as const).map((field) => (
-            <Field key={field}>
-              <Label htmlFor={`cover-${field}`}>{field.charAt(0).toUpperCase() + field.slice(1)}</Label>
-              <textarea
-                id={`cover-${field}`}
-                className="min-h-24 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                value={form[field]}
-                onChange={(event) => setForm((current) => ({ ...current, [field]: event.target.value }))}
-              />
-            </Field>
-          ))}
-
           <Field>
             <Label htmlFor="cover-template">Associated template (cover letter)</Label>
             <Select
@@ -315,6 +317,31 @@ function CoverLetterTab() {
               ))}
             </Select>
           </Field>
+
+          <button
+            type="button"
+            onClick={() => setShowDetails((v) => !v)}
+            className="flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary-hover"
+          >
+            {showDetails ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            {showDetails ? 'Hide details' : 'Details'}
+          </button>
+
+          {showDetails && (
+            <div className="space-y-4">
+              {(['header', 'body', 'close'] as const).map((field) => (
+                <Field key={field}>
+                  <Label htmlFor={`cover-${field}`}>{field.charAt(0).toUpperCase() + field.slice(1)}</Label>
+                  <textarea
+                    id={`cover-${field}`}
+                    className="min-h-24 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    value={form[field]}
+                    onChange={(event) => setForm((current) => ({ ...current, [field]: event.target.value }))}
+                  />
+                </Field>
+              ))}
+            </div>
+          )}
 
           <Button type="button" onClick={() => void onSave()} disabled={updateCoverLetter.isPending}>
             Save cover letter
