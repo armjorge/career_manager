@@ -87,17 +87,22 @@ export function SitesPage() {
             {
               key: 'address',
               header: 'Address',
-              render: (row) => (
-                <a
-                  href={row.address}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-1.5 text-primary hover:underline"
-                >
-                  <ExternalLink className="h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate max-w-[420px]">{row.address}</span>
-                </a>
-              ),
+              render: (row) => {
+                const href = /^https?:\/\//i.test(row.address)
+                  ? row.address
+                  : `https://${row.address}`
+                return (
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1.5 text-primary hover:underline"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate max-w-[420px]">{row.address}</span>
+                  </a>
+                )
+              },
             },
             {
               key: 'applicationCount',
