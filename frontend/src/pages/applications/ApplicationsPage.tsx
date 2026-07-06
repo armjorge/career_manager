@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { Plus } from 'lucide-react'
 import { ApiClientError } from '@/api/client'
 import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
@@ -31,8 +32,10 @@ function applicationLabel(app: ApplicationWithDetails) {
   return `${app.jobName} | ${app.companyName} | ${new Date(app.createdAt).toLocaleDateString()}`
 }
 
-function Milestone1Form() {
-  const { data: applications = [], isLoading } = useApplications()
+type AppFormMode = 'edit' | 'create'
+
+function ApplicationForm({ mode, onCancel }: { mode: AppFormMode; onCancel?: () => void }) {
+  const { data: applications = [] } = useApplications()
   const { data: companies = [] } = useCompanies()
   const { data: languages = [] } = useLanguages()
   const { data: categories = [] } = useJobCategories()
@@ -51,6 +54,8 @@ function Milestone1Form() {
     () => applications.find((app) => app.applicationId === selectedApplicationId) ?? null,
     [applications, selectedApplicationId],
   )
+
+  const showForm = mode === 'create' || (mode === 'edit' && selectedApplicationId !== null)
 
   const {
     register,
@@ -73,7 +78,7 @@ function Milestone1Form() {
   })
 
   useEffect(() => {
-    if (!selectedApp) {
+    if (mode === 'create') {
       reset({
         companyId: companies[0]?.companyId,
         jobName: '',
@@ -86,6 +91,13 @@ function Milestone1Form() {
       })
       setLanguageMode(languages[0]?.langId?.toString() ?? ADD_NEW)
       setCategoryMode(categories[0]?.jobCatId?.toString() ?? ADD_NEW)
+      return
+    }
+
+    if (!selectedApp) {
+      reset({ companyId: undefined, jobName: '', status: 'open', langId: null, jobCatId: null, siteId: null, newLanguage: '', newCategory: '' })
+      setLanguageMode('')
+      setCategoryMode('')
       return
     }
 
@@ -104,47 +116,55 @@ function Milestone1Form() {
     })
     setLanguageMode(langMatch ? String(langMatch.langId) : ADD_NEW)
     setCategoryMode(catMatch ? String(catMatch.jobCatId) : ADD_NEW)
-  }, [selectedApp, companies, languages, categories, reset])
+  }, [mode, selectedApp, companies, languages, categories, reset])
+
+  async function resolveLanguageAndCategory(values: ApplicationFormValues) {
+    let langId = values.langId
+    let jobCatId = values.jobCatId
+
+    if (languageMode === ADD_NEW) {
+      if (!values.newLanguage?.trim()) {
+        setFeedback({ variant: 'error', message: 'Enter a new language or select an existing one.' })
+        return null
+      }
+      const created = await resolveLanguage.mutateAsync(values.newLanguage.trim())
+      langId = created.langId
+    } else if (languageMode) {
+      langId = Number(languageMode)
+    }
+
+    if (categoryMode === ADD_NEW) {
+      if (!values.newCategory?.trim()) {
+        setFeedback({ variant: 'error', message: 'Enter a new category or select an existing one.' })
+        return null
+      }
+      const created = await resolveCategory.mutateAsync(values.newCategory.trim())
+      jobCatId = created.jobCatId
+    } else if (categoryMode) {
+      jobCatId = Number(categoryMode)
+    }
+
+    return { langId, jobCatId }
+  }
 
   const onSubmitCreate = handleSubmit(async (values) => {
     setFeedback(null)
     try {
-      let langId = values.langId
-      let jobCatId = values.jobCatId
-
-      if (languageMode === ADD_NEW) {
-        if (!values.newLanguage?.trim()) {
-          setFeedback({ variant: 'error', message: 'Enter a new language or select an existing one.' })
-          return
-        }
-        const created = await resolveLanguage.mutateAsync(values.newLanguage.trim())
-        langId = created.langId
-      } else if (languageMode) {
-        langId = Number(languageMode)
-      }
-
-      if (categoryMode === ADD_NEW) {
-        if (!values.newCategory?.trim()) {
-          setFeedback({ variant: 'error', message: 'Enter a new category or select an existing one.' })
-          return
-        }
-        const created = await resolveCategory.mutateAsync(values.newCategory.trim())
-        jobCatId = created.jobCatId
-      } else if (categoryMode) {
-        jobCatId = Number(categoryMode)
-      }
+      const resolved = await resolveLanguageAndCategory(values)
+      if (!resolved) return
 
       const created = await createApplication.mutateAsync({
         companyId: values.companyId,
         jobName: values.jobName.trim(),
         status: values.status,
-        langId,
-        jobCatId,
+        langId: resolved.langId,
+        jobCatId: resolved.jobCatId,
         siteId: values.siteId,
       })
 
       setSelectedApplicationId(created.applicationId)
       setFeedback({ variant: 'success', message: 'Application created successfully.' })
+      onCancel?.()
     } catch (error) {
       const message = error instanceof ApiClientError ? error.message : 'Could not create application.'
       setFeedback({ variant: 'error', message })
@@ -152,45 +172,19 @@ function Milestone1Form() {
   })
 
   const onSubmitUpdate = handleSubmit(async (values) => {
-    if (!selectedApplicationId) {
-      setFeedback({ variant: 'error', message: 'Select an application to update.' })
-      return
-    }
-
+    if (!selectedApplicationId) return
     setFeedback(null)
     try {
-      let langId = values.langId
-      let jobCatId = values.jobCatId
-
-      if (languageMode === ADD_NEW) {
-        if (!values.newLanguage?.trim()) {
-          setFeedback({ variant: 'error', message: 'Enter a new language or select an existing one.' })
-          return
-        }
-        const created = await resolveLanguage.mutateAsync(values.newLanguage.trim())
-        langId = created.langId
-      } else if (languageMode) {
-        langId = Number(languageMode)
-      }
-
-      if (categoryMode === ADD_NEW) {
-        if (!values.newCategory?.trim()) {
-          setFeedback({ variant: 'error', message: 'Enter a new category or select an existing one.' })
-          return
-        }
-        const created = await resolveCategory.mutateAsync(values.newCategory.trim())
-        jobCatId = created.jobCatId
-      } else if (categoryMode) {
-        jobCatId = Number(categoryMode)
-      }
+      const resolved = await resolveLanguageAndCategory(values)
+      if (!resolved) return
 
       await updateApplication.mutateAsync({
         applicationId: selectedApplicationId,
         companyId: values.companyId,
         jobName: values.jobName.trim(),
         status: values.status,
-        langId,
-        jobCatId,
+        langId: resolved.langId,
+        jobCatId: resolved.jobCatId,
         siteId: values.siteId,
       })
 
@@ -208,64 +202,30 @@ function Milestone1Form() {
     resolveCategory.isPending
 
   return (
-    <div className="space-y-6">
-      <DataTable
-        isLoading={isLoading}
-        data={applications}
-        emptyMessage="No applications found. Create your first one below."
-        columns={[
-          { key: 'jobName', header: 'Position' },
-          { key: 'companyName', header: 'Company' },
-          { key: 'language', header: 'Language', render: (row) => row.language ?? '—' },
-          { key: 'status', header: 'Status' },
-          { key: 'categoryName', header: 'Category', render: (row) => row.categoryName ?? '—' },
-          {
-            key: 'siteAddress',
-            header: 'Site',
-            render: (row) =>
-              row.siteAddress ? (
-                <a
-                  href={row.siteAddress}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="max-w-[180px] truncate block text-primary hover:underline"
-                  title={row.siteAddress}
-                >
-                  {row.siteAddress}
-                </a>
-              ) : (
-                '—'
-              ),
-          },
-          {
-            key: 'createdAt',
-            header: 'Created',
-            render: (row) => new Date(row.createdAt).toLocaleDateString(),
-          },
-        ]}
-      />
+    <Card>
+      <CardHeader>
+        <CardTitle>{mode === 'create' ? 'New Application' : 'Edit Application'}</CardTitle>
+        <CardDescription>
+          {mode === 'create'
+            ? 'Fill in the details for a new job application.'
+            : 'Select an application to load its details, then save your changes.'}
+        </CardDescription>
+      </CardHeader>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Add or Edit Application</CardTitle>
-          <CardDescription>
-            Core application metadata. Select an existing row to edit, or leave blank to create a
-            new one.
-          </CardDescription>
-        </CardHeader>
-
+      {mode === 'edit' && (
         <div className="mb-5">
           <Field>
-            <Label htmlFor="edit-select">Existing application (optional)</Label>
+            <Label htmlFor="edit-select">Application</Label>
             <Select
               id="edit-select"
               value={selectedApplicationId ?? ''}
               onChange={(event) => {
                 const value = event.target.value
+                setFeedback(null)
                 setSelectedApplicationId(value ? Number(value) : null)
               }}
             >
-              <option value="">Create new application</option>
+              <option value="">— Select an application —</option>
               {applications.map((app) => (
                 <option key={app.applicationId} value={app.applicationId}>
                   {applicationLabel(app)}
@@ -274,7 +234,9 @@ function Milestone1Form() {
             </Select>
           </Field>
         </div>
+      )}
 
+      {showForm && (
         <form className="grid gap-5 md:grid-cols-2">
           <Field>
             <Label htmlFor="companyId">Company</Label>
@@ -387,15 +349,83 @@ function Milestone1Form() {
           ) : null}
 
           <div className="flex flex-wrap gap-3 md:col-span-2">
-            <Button type="button" disabled={isSaving || !selectedApplicationId} onClick={onSubmitUpdate}>
-              {updateApplication.isPending ? 'Saving...' : 'Save Changes'}
-            </Button>
-            <Button type="button" variant="secondary" disabled={isSaving} onClick={onSubmitCreate}>
-              {createApplication.isPending ? 'Creating...' : 'Create New Application'}
-            </Button>
+            {mode === 'edit' ? (
+              <Button type="button" disabled={isSaving} onClick={onSubmitUpdate}>
+                {updateApplication.isPending ? 'Saving...' : 'Save Changes'}
+              </Button>
+            ) : (
+              <>
+                <Button type="button" disabled={isSaving} onClick={onSubmitCreate}>
+                  {createApplication.isPending ? 'Creating...' : 'Create Application'}
+                </Button>
+                <Button type="button" variant="secondary" disabled={isSaving} onClick={onCancel}>
+                  Cancel
+                </Button>
+              </>
+            )}
           </div>
         </form>
-      </Card>
+      )}
+    </Card>
+  )
+}
+
+function Milestone1Form() {
+  const { data: applications = [], isLoading } = useApplications()
+  const [formMode, setFormMode] = useState<AppFormMode>('edit')
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted">{applications.length} application{applications.length !== 1 ? 's' : ''}</p>
+        {formMode === 'edit' && (
+          <Button size="sm" onClick={() => setFormMode('create')}>
+            <Plus className="h-4 w-4" />
+            New Application
+          </Button>
+        )}
+      </div>
+
+      <DataTable
+        isLoading={isLoading}
+        data={applications}
+        emptyMessage="No applications yet. Use the New Application button above to get started."
+        columns={[
+          { key: 'jobName', header: 'Position' },
+          { key: 'companyName', header: 'Company' },
+          { key: 'language', header: 'Language', render: (row) => row.language ?? '—' },
+          { key: 'status', header: 'Status' },
+          { key: 'categoryName', header: 'Category', render: (row) => row.categoryName ?? '—' },
+          {
+            key: 'siteAddress',
+            header: 'Site',
+            render: (row) =>
+              row.siteAddress ? (
+                <a
+                  href={row.siteAddress}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="max-w-[180px] truncate block text-primary hover:underline"
+                  title={row.siteAddress}
+                >
+                  {row.siteAddress}
+                </a>
+              ) : (
+                '—'
+              ),
+          },
+          {
+            key: 'createdAt',
+            header: 'Created',
+            render: (row) => new Date(row.createdAt).toLocaleDateString(),
+          },
+        ]}
+      />
+
+      <ApplicationForm
+        mode={formMode}
+        onCancel={() => setFormMode('edit')}
+      />
     </div>
   )
 }
