@@ -6,7 +6,6 @@ import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { DataTable } from '@/components/data/DataTable'
-import { MilestoneStepper } from '@/components/pipeline/MilestoneStepper'
 import { Field, Label } from '@/components/ui/Label'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
@@ -250,8 +249,8 @@ function Milestone1Form() {
         <CardHeader>
           <CardTitle>Add or Edit Application</CardTitle>
           <CardDescription>
-            Milestone 1 — core application metadata. Select an existing row to edit, or leave blank
-            to create a new one.
+            Core application metadata. Select an existing row to edit, or leave blank to create a
+            new one.
           </CardDescription>
         </CardHeader>
 
@@ -389,7 +388,7 @@ function Milestone1Form() {
 
           <div className="flex flex-wrap gap-3 md:col-span-2">
             <Button type="button" disabled={isSaving || !selectedApplicationId} onClick={onSubmitUpdate}>
-              {updateApplication.isPending ? 'Saving...' : 'Save Changes (Milestone 1)'}
+              {updateApplication.isPending ? 'Saving...' : 'Save Changes'}
             </Button>
             <Button type="button" variant="secondary" disabled={isSaving} onClick={onSubmitCreate}>
               {createApplication.isPending ? 'Creating...' : 'Create New Application'}
@@ -505,7 +504,7 @@ function Milestone2Form() {
         <CardHeader>
           <CardTitle>Update Tracking Details</CardTitle>
           <CardDescription>
-            Milestone 2 — contact person and job posting URL for each application.
+            Contact person and job posting URL for each application.
           </CardDescription>
         </CardHeader>
 
@@ -571,7 +570,7 @@ function Milestone2Form() {
 
           <div className="md:col-span-2">
             <Button type="submit" disabled={updateTracker.isPending || !selectedApplicationId}>
-              {updateTracker.isPending ? 'Saving...' : 'Save Tracking Details (Milestone 2)'}
+              {updateTracker.isPending ? 'Saving...' : 'Save Tracking Details'}
             </Button>
           </div>
         </form>
@@ -588,15 +587,9 @@ export function ApplicationsPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Applications & Tracking</h1>
         <p className="mt-2 text-muted">
-          Manage your application pipeline across milestones — from first submission to document
-          readiness.
+          Manage your application pipeline — create, update, and track each job application.
         </p>
       </div>
-
-      <MilestoneStepper
-        active={activeTab === 'm1' ? 'm1' : 'm2'}
-        completed={{ m1: true, m2: false, m3: false, m4: false, m5: false }}
-      />
 
       <div className="flex gap-2 border-b border-border">
         <button
@@ -608,7 +601,7 @@ export function ApplicationsPage() {
               : 'border-transparent text-muted hover:text-foreground'
           }`}
         >
-          Milestone 1: Applications
+          Applications
         </button>
         <button
           type="button"
@@ -619,7 +612,7 @@ export function ApplicationsPage() {
               : 'border-transparent text-muted hover:text-foreground'
           }`}
         >
-          Milestone 2: Tracking
+          Tracking
         </button>
       </div>
 
