@@ -91,9 +91,11 @@ export function AppShell() {
           <div className="mt-auto hidden border-t border-border p-4 lg:block">
             <div className="mb-3 min-w-0">
               <p className="truncate text-sm font-medium text-foreground">
-                {user?.email ?? 'Signed in'}
+                {user?.email ?? 'Not signed in'}
               </p>
-              <p className="truncate text-xs text-muted">{user?.sub}</p>
+              {user?.sub ? (
+                <p className="truncate text-xs text-muted">{user.sub}</p>
+              ) : null}
             </div>
             <Button
               type="button"
