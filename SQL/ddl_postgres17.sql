@@ -2,6 +2,8 @@
 -- Career Manager — complete schema (PostgreSQL 17 / Neon)
 -- ==========================================
 -- Single source of truth: sequences, tables, indexes, functions, RLS, triggers.
+-- user_id stores the Cognito user pool subject (sub). Neon Auth FKs intentionally omitted.
+-- user_id stores the Cognito user pool subject (sub). Neon Auth FKs intentionally omitted.
 --
 -- Greenfield install (destroys all data in consulting_tracker):
 --   Uncomment the DROP/CREATE SCHEMA lines below, then run this file.
@@ -55,8 +57,7 @@ CREATE TABLE IF NOT EXISTS consulting_tracker.dim_ctype (
 	ctype_id int4 DEFAULT nextval('consulting_tracker.seq_dim_ctype'::regclass) NOT NULL,
 	type_name varchar(100) NOT NULL,
 	created_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
-	CONSTRAINT dim_ctype_pkey PRIMARY KEY (ctype_id),
-	CONSTRAINT dim_company_user_id FOREIGN KEY (user_id) REFERENCES neon_auth."user" (id) ON DELETE CASCADE
+	CONSTRAINT dim_ctype_pkey PRIMARY KEY (ctype_id)
 );
 
 -- 2.2 JOB CATEGORY (scoped per user)
@@ -65,8 +66,7 @@ CREATE TABLE IF NOT EXISTS consulting_tracker.dim_job_category (
 	job_cat_id int4 DEFAULT nextval('consulting_tracker.seq_dim_job_category'::regclass) NOT NULL,
 	category_name varchar(255) NOT NULL,
 	created_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
-	CONSTRAINT dim_job_category_pkey PRIMARY KEY (job_cat_id),
-	CONSTRAINT dim_job_cat_user_id FOREIGN KEY (user_id) REFERENCES neon_auth."user" (id) ON DELETE CASCADE
+	CONSTRAINT dim_job_category_pkey PRIMARY KEY (job_cat_id)
 );
 
 -- 2.3 LANGUAGES (scoped per user)
@@ -75,8 +75,7 @@ CREATE TABLE IF NOT EXISTS consulting_tracker.dim_language (
 	lang_id int4 DEFAULT nextval('consulting_tracker.seq_dim_language'::regclass) NOT NULL,
 	"language" varchar(100) NOT NULL,
 	created_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
-	CONSTRAINT dim_language_pkey PRIMARY KEY (lang_id),
-	CONSTRAINT dim_lang_user_id FOREIGN KEY (user_id) REFERENCES neon_auth."user" (id) ON DELETE CASCADE
+	CONSTRAINT dim_language_pkey PRIMARY KEY (lang_id)
 );
 
 
@@ -88,7 +87,6 @@ CREATE TABLE IF NOT EXISTS consulting_tracker.dim_company (
 	company_name varchar(255) NOT NULL,
 	created_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
 	CONSTRAINT dim_company_pkey PRIMARY KEY (company_id),
-	CONSTRAINT dim_company_user_id FOREIGN KEY (user_id) REFERENCES neon_auth."user" (id) ON DELETE CASCADE,
 	CONSTRAINT dim_company_ctype_id_fkey FOREIGN KEY (ctype_id) REFERENCES consulting_tracker.dim_ctype(ctype_id)
 );
 
@@ -104,7 +102,6 @@ CREATE TABLE IF NOT EXISTS consulting_tracker.dim_file (
 	created_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
 	CONSTRAINT dim_file_file_type_check CHECK (((file_type)::text = ANY (ARRAY[('cover letter'::character varying)::text, ('cv'::character varying)::text]))),
 	CONSTRAINT dim_file_pkey PRIMARY KEY (file_id),
-	CONSTRAINT dim_file_user_id FOREIGN KEY (user_id) REFERENCES neon_auth."user" (id) ON DELETE CASCADE,
 	CONSTRAINT dim_file_lang_id_fkey FOREIGN KEY (lang_id) REFERENCES consulting_tracker.dim_language(lang_id)
 );
 
@@ -117,8 +114,7 @@ CREATE TABLE IF NOT EXISTS consulting_tracker.fact_web_list (
 	address text NOT NULL,
 	created_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
 	last_modification timestamptz,
-	CONSTRAINT fact_web_list_pkey PRIMARY KEY (site_id),
-	CONSTRAINT fact_web_user_id FOREIGN KEY (user_id) REFERENCES neon_auth."user" (id) ON DELETE CASCADE
+	CONSTRAINT fact_web_list_pkey PRIMARY KEY (site_id)
 );
 
 -- 2.7 APPLICATIONS (core fact — scoped per user)
@@ -133,7 +129,6 @@ CREATE TABLE IF NOT EXISTS consulting_tracker.fact_application (
 	site_id int4 NULL,
 	created_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
 	CONSTRAINT fact_application_pkey PRIMARY KEY (application_id),
-	CONSTRAINT fact_app_user_id FOREIGN KEY (user_id) REFERENCES neon_auth."user" (id) ON DELETE CASCADE,
 	CONSTRAINT fact_application_status_check CHECK (((status)::text = ANY (ARRAY[('closed'::character varying)::text, ('open'::character varying)::text]))),
 	CONSTRAINT fact_application_company_id_fkey FOREIGN KEY (company_id) REFERENCES consulting_tracker.dim_company(company_id),
 	CONSTRAINT fact_application_dim_job_category_fk FOREIGN KEY (job_cat_id) REFERENCES consulting_tracker.dim_job_category(job_cat_id) ON DELETE SET NULL ON UPDATE CASCADE,
@@ -172,7 +167,6 @@ CREATE TABLE IF NOT EXISTS consulting_tracker.dim_tracker (
 	cover_letter text NULL,
 	position_pdf text NULL,
 	CONSTRAINT dim_tracker_pkey PRIMARY KEY (application_id),
-	CONSTRAINT dim_tracker_user_id_fkey FOREIGN KEY (user_id) REFERENCES neon_auth."user" (id) ON DELETE CASCADE,
 	CONSTRAINT dim_tracker_application_id_fkey FOREIGN KEY (application_id) REFERENCES consulting_tracker.fact_application(application_id) ON DELETE CASCADE
 );
 
@@ -190,7 +184,6 @@ CREATE TABLE IF NOT EXISTS consulting_tracker.dim_resume_details (
 	interests text NULL,
 	file_id int4 NULL,
 	CONSTRAINT dim_resume_details_pkey PRIMARY KEY (application_id),
-	CONSTRAINT dim_resume_details_user_id_fkey FOREIGN KEY (user_id) REFERENCES neon_auth."user" (id) ON DELETE CASCADE,
 	CONSTRAINT dim_resume_details_application_id_fkey FOREIGN KEY (application_id) REFERENCES consulting_tracker.fact_application(application_id) ON DELETE CASCADE,
 	CONSTRAINT dim_resume_details_file_id_fkey FOREIGN KEY (file_id) REFERENCES consulting_tracker.dim_file(file_id)
 );
@@ -204,7 +197,6 @@ CREATE TABLE IF NOT EXISTS consulting_tracker.dim_cover_letter (
 	"close" text NULL,
 	file_id int4 NULL,
 	CONSTRAINT dim_cover_letter_pkey PRIMARY KEY (application_id),
-	CONSTRAINT dim_cover_letter_user_id_fkey FOREIGN KEY (user_id) REFERENCES neon_auth."user" (id) ON DELETE CASCADE,
 	CONSTRAINT dim_cover_letter_application_id_fkey FOREIGN KEY (application_id) REFERENCES consulting_tracker.fact_application(application_id) ON DELETE CASCADE,
 	CONSTRAINT dim_cover_letter_file_id_fkey FOREIGN KEY (file_id) REFERENCES consulting_tracker.dim_file(file_id)
 );
@@ -220,7 +212,6 @@ CREATE TABLE IF NOT EXISTS consulting_tracker.fact_pdf_generator (
 	pdf_success bool DEFAULT true NOT NULL,
 	created_at timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
 	CONSTRAINT fact_pdf_generator_pkey PRIMARY KEY (pdf_id),
-	CONSTRAINT fact_pdf_generator_user_id_fkey FOREIGN KEY (user_id) REFERENCES neon_auth."user" (id) ON DELETE CASCADE,
 	CONSTRAINT fact_pdf_generator_application_id_fkey FOREIGN KEY (application_id) REFERENCES consulting_tracker.fact_application(application_id) ON DELETE CASCADE
 );
 CREATE TABLE IF NOT EXISTS consulting_tracker.dim_attachment (
@@ -239,8 +230,6 @@ CREATE TABLE IF NOT EXISTS consulting_tracker.dim_attachment (
     created_at       timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
 
     CONSTRAINT dim_attachment_pkey PRIMARY KEY (attachment_id),
-    CONSTRAINT dim_attachment_user_id_fkey
-        FOREIGN KEY (user_id) REFERENCES neon_auth."user" (id) ON DELETE CASCADE,
     CONSTRAINT dim_attachment_application_id_fkey
         FOREIGN KEY (application_id) REFERENCES consulting_tracker.fact_application(application_id) ON DELETE CASCADE,
     CONSTRAINT dim_attachment_type_check
@@ -345,11 +334,9 @@ WHERE NOT EXISTS (
 -- 5. ROW LEVEL SECURITY — not used
 -- ==========================================
 -- Multi-tenancy is enforced in FastAPI: every API query filters by user_id from the
--- Neon Auth JWT (sub claim). User accounts live in neon_auth."user"; no separate
--- auth schema or pg_session_jwt extension is required.
+-- Cognito JWT subject (sub claim). No FK to an auth user table is required.
 --
--- RLS (auth.uid() policies) applies only to direct Neon Data API access. This app
--- uses Lambda + FastAPI, so RLS is intentionally omitted here.
+-- RLS is intentionally omitted; this app uses Lambda + FastAPI ownership filters.
 
 -- ==========================================
 -- 6. TRIGGERS

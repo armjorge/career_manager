@@ -13,7 +13,7 @@ import {
 import { cn } from '@/utils/cn'
 import { isMockMode } from '@/api/client'
 import { Button } from '@/components/ui/Button'
-import { useAuth } from '@/context/AuthContext'
+import { useAuth } from '@/auth/useAuth'
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -27,13 +27,12 @@ const navItems = [
 ]
 
 export function AppShell() {
-  const { user, logout } = useAuth()
+  const { user, signOut } = useAuth()
 
   return (
     <div className="flex min-h-screen flex-col lg:grid lg:grid-cols-[260px_1fr]">
       <aside className="shrink-0 border-b border-border bg-surface lg:border-b-0 lg:border-r">
         <div className="flex flex-col lg:h-full lg:min-h-screen">
-          {/* Brand header — visible only on desktop */}
           <div className="hidden border-b border-border px-5 py-6 lg:block">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
@@ -51,7 +50,6 @@ export function AppShell() {
             ) : null}
           </div>
 
-          {/* Mobile top bar with brand + sign out */}
           <div className="flex items-center justify-between px-4 py-3 lg:hidden">
             <div className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/15 text-primary">
@@ -64,17 +62,11 @@ export function AppShell() {
                 </span>
               ) : null}
             </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => void logout()}
-            >
+            <Button type="button" variant="ghost" size="sm" onClick={() => signOut()}>
               <LogOut className="h-4 w-4" />
             </Button>
           </div>
 
-          {/* Nav — horizontal scrollable on mobile, vertical on desktop */}
           <nav className="flex gap-1 overflow-x-auto p-2 lg:flex-1 lg:flex-col lg:overflow-visible lg:p-3">
             {navItems.map(({ to, label, icon: Icon, end }) => (
               <NavLink
@@ -96,20 +88,19 @@ export function AppShell() {
             ))}
           </nav>
 
-          {/* User footer — desktop only */}
           <div className="mt-auto hidden border-t border-border p-4 lg:block">
             <div className="mb-3 min-w-0">
               <p className="truncate text-sm font-medium text-foreground">
-                {user?.name ?? 'Signed in'}
+                {user?.email ?? 'Signed in'}
               </p>
-              <p className="truncate text-xs text-muted">{user?.email}</p>
+              <p className="truncate text-xs text-muted">{user?.sub}</p>
             </div>
             <Button
               type="button"
               variant="ghost"
               size="sm"
               className="w-full justify-start"
-              onClick={() => void logout()}
+              onClick={() => signOut()}
             >
               <LogOut className="h-4 w-4" />
               Sign out

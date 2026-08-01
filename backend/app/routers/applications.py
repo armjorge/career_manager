@@ -3,9 +3,9 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from psycopg2.extras import RealDictCursor
 
-from backend.app.auth import get_current_user_id
-from backend.app.database import db_cursor, schema
-from backend.app.schemas import (
+from app.auth import get_current_user_id
+from app.database import db_cursor, schema
+from app.schemas import (
     ApplicationCreate,
     ApplicationOut,
     ApplicationUpdate,
@@ -356,55 +356,6 @@ def resolve_language(
             (str(user_id), name),
         )
         return LanguageOut.model_validate(cur.fetchone())
-
-
-@router.get("/trackers", response_model=list[TrackerOut])
-def list_trackers(user_id: UUID = Depends(get_current_user_id)) -> list[TrackerOut]:
-    with db_cursor() as cur:
-        cur.execute(f"{_tracker_select()} ORDER BY fa.created_at DESC", (str(user_id),))
-        return [_row_to_tracker(row) for row in cur.fetchall()]
-
-
-@router.put("/trackers/{application_id}", response_model=TrackerOut)
-def update_tracker(
-    application_id: int,
-    payload: TrackerUpdate,
-    user_id: UUID = Depends(get_current_user_id),
-) -> TrackerOut:
-    with db_cursor() as cur:
-        cur.execute(
-            f"""
-            UPDATE {schema()}.dim_tracker
-            SET contact_name = %s,
-                contact_email = %s,
-                position_url = %s
-            WHERE user_id = %s AND application_id = %s
-            """,
-            (
-                _optional_text(payload.contact_name),
-                _optional_text(payload.contact_email),
-                _optional_text(payload.position_url),
-                str(user_id),
-                application_id,
-            ),
-        )
-        if cur.rowcount == 0:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail={"message": "Tracking record not found", "code": "NOT_FOUND"},
-            )
-
-        cur.execute(
-            f"{_tracker_select()} AND dt.application_id = %s",
-            (str(user_id), application_id),
-        )
-        row = cur.fetchone()
-        if row is None:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail={"message": "Failed to load updated tracking record"},
-            )
-        return _row_to_tracker(row)
 
 
 @router.get("/trackers", response_model=list[TrackerOut])

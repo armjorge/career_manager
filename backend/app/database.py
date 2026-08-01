@@ -7,7 +7,7 @@ from psycopg2 import OperationalError
 from psycopg2.extras import RealDictCursor
 from psycopg2.pool import SimpleConnectionPool
 
-from backend.app.config import get_settings
+from app.config import get_settings
 
 _pool: SimpleConnectionPool | None = None
 
@@ -23,6 +23,8 @@ def _get_pool() -> SimpleConnectionPool:
     global _pool
     if _pool is None:
         settings = get_settings()
+        if not settings.db_postgresql:
+            raise _db_unavailable(RuntimeError("DB_POSTGRESQL is not configured"))
         try:
             _pool = SimpleConnectionPool(
                 minconn=1,

@@ -1,10 +1,10 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 
-from backend.app.auth import get_current_user_id
-from backend.app.database import db_cursor, schema
-from backend.app.schemas import WebsiteCreate, WebsiteOut
+from app.auth import get_current_user_id
+from app.database import db_cursor, schema
+from app.schemas import WebsiteCreate, WebsiteOut
 
 router = APIRouter(prefix="/sites", tags=["sites"])
 
@@ -99,11 +99,11 @@ def create_site(
         return WebsiteOut.model_validate({**row, "application_count": 0})
 
 
-@router.delete("/{site_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{site_id}", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
 def delete_site(
     site_id: int,
     user_id: UUID = Depends(get_current_user_id),
-) -> None:
+) -> Response:
     with db_cursor() as cur:
         cur.execute(
             f"SELECT 1 FROM {schema()}.fact_web_list WHERE user_id = %s AND site_id = %s",
@@ -118,3 +118,4 @@ def delete_site(
             f"DELETE FROM {schema()}.fact_web_list WHERE user_id = %s AND site_id = %s",
             (str(user_id), site_id),
         )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

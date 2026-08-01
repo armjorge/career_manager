@@ -6,7 +6,7 @@ from uuid import UUID
 import boto3
 from botocore.exceptions import ClientError
 
-from backend.app.config import get_settings
+from app.config import get_settings
 
 AttachmentTypeLiteral = str  # 'job_description' | 'resume_submitted' | 'cover_letter_submitted'
 

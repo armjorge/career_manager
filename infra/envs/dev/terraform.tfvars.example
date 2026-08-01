@@ -1,0 +1,41 @@
+aws_region   = "us-east-1"
+project_name = "career-app"
+environment  = "dev"
+
+# Feature toggles — disable modules you are not using
+enable_frontend            = true
+enable_auth                = true
+enable_api                 = true
+enable_documents           = true
+enable_cognito_auth_on_api = true
+# Cognito domain + authorization-code OAuth (required for Google)
+enable_hosted_ui           = true
+
+# Neon pooled connection string (required for API data routes)
+# db_postgresql = "postgresql://USER:PASSWORD@HOST/neondb?sslmode=require"
+
+# Optional Google federation — OAuth Web client in Google Cloud Console.
+# Authorized redirect URI:
+#   https://<cognito_hosted_ui_domain>.auth.<region>.amazoncognito.com/oauth2/idpresponse
+# google_client_id     = ""
+# google_client_secret = ""
+
+# Package the backend first: ./backend/scripts/package.sh
+lambda_zip_path = "../../../backend/dist/lambda.zip"
+
+# Extra origins only — CloudFront site URL is merged automatically from the frontend module.
+cors_allow_origins = [
+  "http://localhost:5173",
+]
+
+cognito_callback_urls = [
+  "http://localhost:5173/auth/callback",
+]
+
+cognito_logout_urls = [
+  "http://localhost:5173/",
+]
+
+tags = {
+  Owner = "platform"
+}

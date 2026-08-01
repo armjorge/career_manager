@@ -2,41 +2,48 @@ name: Backend CI/CD
 
 on:
   push:
-    branches: [develop, main]
-    paths: ['backend/**', '.github/workflows/backend.yml']
+    branches: [dev, prod]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend.yml'
   pull_request:
-    branches: [develop, main]
-    paths: ['backend/**', '.github/workflows/backend.yml']
+    branches: [dev, prod]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend.yml'
   workflow_dispatch:
 
-# Resolve environment name:
-#   main branch (or manual target)  → prod
-#   develop branch                  → dev
+# Branch → GitHub Environment:
+#   prod → prod  (career-app-prod-*)
+#   dev  → dev   (career-app-dev-*)
 #
-# When you have a second AWS account, update the secrets inside the
-# 'prod' GitHub Environment — no workflow changes needed.
+# Required Environment secrets:
+#   AWS_ACCESS_KEY_ID
+#   AWS_SECRET_ACCESS_KEY
+#   AWS_REGION                 (default us-east-1)
+#   LAMBDA_FUNCTION_NAME      (e.g. career-app-dev-api)
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    environment: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+    environment: ${{ github.ref_name == 'prod' && 'prod' || 'dev' }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Python 3.12
-        uses: actions/setup-python@v5
+      - name: Setup uv + Python 3.13
+        uses: astral-sh/setup-uv@v5
         with:
-          python-version: '3.12'
+          python-version: '3.13'
 
       - name: Install OS Dependencies
         run: sudo apt-get update && sudo apt-get install -y zip
 
       - name: Build Lambda Package
         run: |
-          chmod +x ./backend/build-lambda.sh
-          PYTHON=python3.12 ./backend/build-lambda.sh
+          chmod +x ./backend/scripts/package.sh
+          ./backend/scripts/package.sh
 
       - name: Configure AWS Credentials
         if: github.event_name != 'pull_request'
@@ -50,5 +57,5 @@ jobs:
         if: github.event_name != 'pull_request'
         run: |
           aws lambda update-function-code \
-            --function-name ${{ secrets.LAMBDA_FUNCTION_NAME }} \
-            --zip-file fileb://lambda.zip
+            --function-name "${{ secrets.LAMBDA_FUNCTION_NAME }}" \
+            --zip-file "fileb://backend/dist/lambda.zip"

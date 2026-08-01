@@ -2,16 +2,21 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from mangum import Mangum
 
-from backend.app.config import get_settings
-from backend.app.database import check_db_connection
-from backend.app.routers import analytics, applications, auth, companies, documents, sites
+from app.config import get_settings
+from app.database import check_db_connection
+from app.routers import analytics, applications, companies, documents, health, me, sites
 
 
 def create_app() -> FastAPI:
     settings = get_settings()
-    app = FastAPI(title="Career Manager API", version="0.1.0")
+
+    app = FastAPI(
+        title="Career Manager API",
+        version="0.1.0",
+        docs_url="/docs" if settings.environment != "prod" else None,
+        redoc_url=None,
+    )
 
     app.add_middleware(
         CORSMiddleware,
@@ -37,15 +42,21 @@ def create_app() -> FastAPI:
         )
 
     @app.get(f"{settings.api_prefix}/health")
-    def health_check() -> dict[str, str]:
+    def api_health() -> dict[str, str]:
         return {"status": "healthy"}
 
     @app.get(f"{settings.api_prefix}/health/db")
-    def health_db() -> dict[str, str]:
+    def api_health_db() -> dict[str, str]:
+        if not settings.db_postgresql:
+            raise HTTPException(
+                status_code=503,
+                detail={"message": "DB_POSTGRESQL is not configured", "code": "DB_UNAVAILABLE"},
+            )
         check_db_connection()
         return {"status": "healthy", "database": "connected"}
 
-    app.include_router(auth.router, prefix=settings.api_prefix)
+    app.include_router(health.router)
+    app.include_router(me.router)
     app.include_router(companies.router, prefix=settings.api_prefix)
     app.include_router(applications.router, prefix=settings.api_prefix)
     app.include_router(analytics.router, prefix=settings.api_prefix)
@@ -56,10 +67,3 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
-
-# AWS Lambda entry point — set handler to: backend.app.main.handler
-handler = Mangum(
-    app,
-    lifespan="off",
-    api_gateway_base_path=get_settings().api_gateway_base_path,
-)

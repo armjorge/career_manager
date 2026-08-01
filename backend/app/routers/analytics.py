@@ -2,9 +2,9 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends
 
-from backend.app.auth import get_current_user_id
-from backend.app.database import db_cursor, schema
-from backend.app.schemas import AnalyticsMetrics, AnalyticsSummary, LabelCount, MonthlyActivity
+from app.auth import get_current_user_id
+from app.database import db_cursor, schema
+from app.schemas import AnalyticsMetrics, AnalyticsSummary, LabelCount, MonthlyActivity
 
 router = APIRouter(tags=["analytics"])
 

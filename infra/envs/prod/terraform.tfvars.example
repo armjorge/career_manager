@@ -1,0 +1,32 @@
+aws_region   = "us-east-1"
+project_name = "career-app"
+environment  = "prod"
+
+enable_frontend            = true
+enable_auth                = true
+enable_api                 = true
+enable_documents           = true
+enable_cognito_auth_on_api = true
+enable_hosted_ui           = true
+
+# Neon pooled connection string (required for API data routes).
+# Use a dedicated prod Neon database — never commit the real value.
+# db_postgresql = "postgresql://USER:PASSWORD@HOST/neondb?sslmode=require&channel_binding=require"
+
+# Optional Google federation (see root README)
+# google_client_id     = ""
+# google_client_secret = ""
+
+lambda_zip_path = "../../../backend/dist/lambda.zip"
+
+# Extra origins only — CloudFront is merged automatically.
+# Add a custom domain here when you attach one to CloudFront.
+cors_allow_origins = []
+
+cognito_callback_urls = []
+
+cognito_logout_urls = []
+
+tags = {
+  Owner = "platform"
+}

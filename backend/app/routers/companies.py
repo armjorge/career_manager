@@ -2,9 +2,9 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from backend.app.auth import get_current_user_id
-from backend.app.database import db_cursor, schema
-from backend.app.schemas import (
+from app.auth import get_current_user_id
+from app.database import db_cursor, schema
+from app.schemas import (
     CompanyCreate,
     CompanyOut,
     CompanyTypeCreate,

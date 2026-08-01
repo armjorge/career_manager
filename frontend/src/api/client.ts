@@ -1,4 +1,4 @@
-import { getStoredToken } from '@/auth/tokenStorage'
+import { getIdToken } from '@/auth/cognito'
 import type { ApiError } from '@/types'
 
 export class ApiClientError extends Error {
@@ -13,7 +13,7 @@ export class ApiClientError extends Error {
   }
 }
 
-const baseUrl = import.meta.env.VITE_API_BASE_URL ?? 'mock'
+const baseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api/v1'
 export const isMockMode = baseUrl === 'mock'
 
 type RequestOptions = Omit<RequestInit, 'body'> & {
@@ -41,19 +41,24 @@ async function parseError(response: Response): Promise<ApiError> {
   return { message: response.statusText || 'Request failed' }
 }
 
+async function authHeader(): Promise<Record<string, string>> {
+  if (isMockMode) return {}
+  const token = await getIdToken()
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
 export async function apiClient<T>(
   path: string,
   options: RequestOptions = {},
 ): Promise<T> {
   const { body, headers, ...rest } = options
-
-  const token = getStoredToken()
+  const auth = await authHeader()
 
   const response = await fetch(`${baseUrl}${path}`, {
     ...rest,
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...auth,
       ...headers,
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -71,13 +76,17 @@ export async function apiClient<T>(
   return (await response.json()) as T
 }
 
-export async function apiClientFormData<T>(path: string, formData: FormData, method = 'POST'): Promise<T> {
-  const token = getStoredToken()
+export async function apiClientFormData<T>(
+  path: string,
+  formData: FormData,
+  method = 'POST',
+): Promise<T> {
+  const auth = await authHeader()
 
   const response = await fetch(`${baseUrl}${path}`, {
     method,
     headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...auth,
     },
     body: formData,
   })

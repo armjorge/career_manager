@@ -215,6 +215,11 @@ frontend/node_modules/
 frontend/dist/
 frontend/.env
 
+# Local migration snapshots (not part of the deployable app)
+backend_old/
+frontend_old/
+infra_old/
+
 # AWS Lambda package artifacts
 lambda.zip
 .lambda-package/

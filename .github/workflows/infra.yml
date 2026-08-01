@@ -1,0 +1,39 @@
+name: Infra (manual)
+
+# Infrastructure is applied manually with OpenTofu so you can review plans.
+# This workflow only validates that modules configure cleanly (no apply).
+
+on:
+  pull_request:
+    branches: [dev, prod]
+    paths:
+      - 'infra/**'
+      - '.github/workflows/infra.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment directory under infra/envs'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - prod
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: 1.9.1
+
+      - name: Validate selected env
+        working-directory: infra/envs/${{ github.event.inputs.environment || 'dev' }}
+        run: |
+          tofu init -backend=false
+          tofu validate

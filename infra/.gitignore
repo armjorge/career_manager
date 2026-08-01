@@ -1,0 +1,21 @@
+# Local OpenTofu / Terraform state & plans
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Variable files with secrets (keep *.example)
+*.tfvars
+!*.tfvars.example
+
+# Lambda deployment artifacts copied into modules
+*.zip

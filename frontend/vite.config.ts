@@ -4,23 +4,21 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
-  plugins: [
-    react(),
-    tailwindcss(),
-    {
-      name: 'strip-crossorigin-for-static-hosting',
-      transformIndexHtml: {
-        order: 'post',
-        handler(html) {
-          // S3 website hosting does not send CORS headers; crossorigin breaks module loads.
-          return html.replace(/\s+crossorigin/g, '')
-        },
-      },
-    },
-  ],
+  plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
+  },
+  // amazon-cognito-identity-js / Buffer expect Node's `global`
+  define: {
+    global: 'globalThis',
+  },
+  server: {
+    port: 5173,
+  },
+  build: {
+    outDir: 'dist',
+    sourcemap: true,
   },
 })

@@ -2,24 +2,44 @@ name: Frontend CI/CD
 
 on:
   push:
-    branches: [develop, main]
-    paths: ['frontend/**', '.github/workflows/frontend.yml']
+    branches: [dev, prod]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend.yml'
   pull_request:
-    branches: [develop, main]
-    paths: ['frontend/**', '.github/workflows/frontend.yml']
+    branches: [dev, prod]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend.yml'
   workflow_dispatch:
 
-# Resolve environment name:
-#   main branch (or manual target)  → prod
-#   develop branch                  → dev
+# Branch → GitHub Environment:
+#   prod → prod  (career-app-prod-*)
+#   dev  → dev   (career-app-dev-*)
 #
-# When you have a second AWS account, update the secrets inside the
-# 'prod' GitHub Environment — no workflow changes needed.
+# Required Environment secrets:
+#   AWS_ACCESS_KEY_ID
+#   AWS_SECRET_ACCESS_KEY
+#   AWS_REGION                      (default us-east-1)
+#   S3_BUCKET                      (e.g. career-app-dev-site — no s3:// prefix)
+#   CLOUDFRONT_DISTRIBUTION_ID
+#   VITE_API_BASE_URL              (…/api/v1)
+#   VITE_COGNITO_USER_POOL_ID
+#   VITE_COGNITO_USER_POOL_CLIENT_ID
+#   VITE_COGNITO_DOMAIN            (hosted UI prefix, e.g. career-app-dev-auth)
+#   VITE_AWS_REGION                (us-east-1)
+# Optional:
+#   VITE_ENABLE_AUTH               (default true)
+#   VITE_ENABLE_GOOGLE_AUTH        (default false)
+#   VITE_ENABLE_ANALYTICS          (default true)
+#   VITE_POSTHOG_KEY
+#   VITE_POSTHOG_HOST
+#   VITE_APP_NAME
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    environment: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+    environment: ${{ github.ref_name == 'prod' && 'prod' || 'dev' }}
     defaults:
       run:
         working-directory: ./frontend
@@ -36,12 +56,22 @@ jobs:
           cache-dependency-path: './frontend/package-lock.json'
 
       - name: Install Dependencies
-        run: npm install
+        run: npm ci
 
       - name: Build React App
         env:
+          VITE_APP_NAME: Career Manager
+          VITE_ENVIRONMENT: ${{ github.ref_name == 'prod' && 'prod' || 'dev' }}
           VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
-          VITE_NEON_AUTH_URL: ${{ secrets.VITE_NEON_AUTH_URL }}
+          VITE_AWS_REGION: ${{ secrets.VITE_AWS_REGION }}
+          VITE_COGNITO_USER_POOL_ID: ${{ secrets.VITE_COGNITO_USER_POOL_ID }}
+          VITE_COGNITO_USER_POOL_CLIENT_ID: ${{ secrets.VITE_COGNITO_USER_POOL_CLIENT_ID }}
+          VITE_COGNITO_DOMAIN: ${{ secrets.VITE_COGNITO_DOMAIN }}
+          VITE_ENABLE_AUTH: 'true'
+          VITE_ENABLE_GOOGLE_AUTH: 'false'
+          VITE_ENABLE_ANALYTICS: 'true'
+          VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
+          VITE_POSTHOG_HOST: ${{ secrets.VITE_POSTHOG_HOST }}
         run: npm run build
 
       - name: Configure AWS Credentials
@@ -55,11 +85,11 @@ jobs:
       - name: Deploy to S3
         if: github.event_name != 'pull_request'
         run: |
-          aws s3 sync dist/ ${{ secrets.S3_BUCKET }} --delete
+          aws s3 sync dist/ "s3://${{ secrets.S3_BUCKET }}/" --delete
 
       - name: Invalidate CloudFront Cache
         if: github.event_name != 'pull_request'
         run: |
           aws cloudfront create-invalidation \
-            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
-            --paths "/index.html"
+            --distribution-id "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" \
+            --paths "/*"

@@ -3,12 +3,12 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status, Response
 from psycopg2.extras import RealDictCursor
 
-from backend.app.auth import get_current_user_id
-from backend.app.database import db_cursor, schema
-from backend.app.schemas import (
+from app.auth import get_current_user_id
+from app.database import db_cursor, schema
+from app.schemas import (
     AttachmentDownloadOut,
     AttachmentOut,
     AttachmentTypeLiteral,
@@ -26,13 +26,13 @@ from backend.app.schemas import (
     ResumeDetailsRow,
     ResumeDetailsUpdate,
 )
-from backend.app.services.document_generation import (
+from app.services.document_generation import (
     format_date_issued,
     populate_document,
     propose_output_filename,
     unique_output_filename,
 )
-from backend.app.services.s3_storage import (
+from app.services.s3_storage import (
     attachment_object_key,
     generated_object_key,
     get_document_storage,
@@ -428,8 +428,8 @@ def update_template(
         return FileTemplateOut.model_validate({**row, "language": language})
 
 
-@router.delete("/templates/{file_id}", status_code=status.HTTP_204_NO_CONTENT)
-def deactivate_template(file_id: int, user_id: UUID = Depends(get_current_user_id)) -> None:
+@router.delete("/templates/{file_id}", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
+def deactivate_template(file_id: int, user_id: UUID = Depends(get_current_user_id)) -> Response:
     with db_cursor() as cur:
         cur.execute(
             f"""
@@ -455,6 +455,7 @@ def deactivate_template(file_id: int, user_id: UUID = Depends(get_current_user_i
         )
 
     get_document_storage().delete_template(user_id, row["file_name"])
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/generation-options", response_model=list[GenerationOptionOut])
@@ -681,11 +682,11 @@ def list_generations(
         return [GenerationLogOut.model_validate(row) for row in cur.fetchall()]
 
 
-@router.delete("/generations/{pdf_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/generations/{pdf_id}", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
 def delete_generation(
     pdf_id: int,
     user_id: UUID = Depends(get_current_user_id),
-) -> None:
+) -> Response:
     with db_cursor() as cur:
         cur.execute(
             f"""
@@ -716,6 +717,7 @@ def delete_generation(
             )
         except Exception:
             pass
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/generations/{pdf_id}/download", response_model=DownloadUrlOut)
@@ -854,12 +856,13 @@ async def upload_attachment(
 @router.delete(
     "/attachments/{application_id}/{attachment_type}",
     status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
 )
 def delete_attachment(
     application_id: int,
     attachment_type: str,
     user_id: UUID = Depends(get_current_user_id),
-) -> None:
+) -> Response:
     atype = _validate_attachment_type(attachment_type)
 
     with db_cursor() as cur:
@@ -895,6 +898,7 @@ def delete_attachment(
             storage.client.delete_object(Bucket=storage.bucket, Key=row["s3_key"])
         except Exception:
             pass
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get(
