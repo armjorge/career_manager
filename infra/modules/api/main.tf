@@ -190,6 +190,14 @@ resource "aws_apigatewayv2_route" "api_v1_health" {
   target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 
+# CORS preflight must not require JWT (browsers send OPTIONS without Authorization).
+resource "aws_apigatewayv2_route" "options_proxy" {
+  api_id             = aws_apigatewayv2_api.http.id
+  route_key          = "OPTIONS /{proxy+}"
+  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+  authorization_type = "NONE"
+}
+
 # Catch-all for the FastAPI app (JWT when auth is enabled)
 resource "aws_apigatewayv2_route" "proxy" {
   api_id    = aws_apigatewayv2_api.http.id
